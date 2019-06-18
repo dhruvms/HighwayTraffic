@@ -65,11 +65,12 @@ end
 function AgentState(roadway::Roadway;
                     s::Float64 = 0.0,
                     t::Float64 = 0.0,
+                    ϕ::Float64 = 0.0,
                     v::Float64 = 0.0,
                     a::Float64 = 0.0,
                     δ::Float64 = 0.0,
                     lane::LaneTag = LaneTag(1,1))
-    posF = Frenet(roadway[lane], s, t)
+    posF = Frenet(roadway[lane], s, t, ϕ)
     state = VehicleState(posF, roadway, v)
     return AgentState(state, a, δ)
 end

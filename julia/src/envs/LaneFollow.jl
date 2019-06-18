@@ -3,8 +3,9 @@ module LaneFollow
 using AutomotiveDrivingModels
 using AutoViz
 using Parameters
+using Reel
 
-export reset, step, render, dict_to_params
+export reset, step, render, save_gif, dict_to_params
 export action_space, observation_space, EnvParams
 
 const EGO_ID = 1
@@ -37,6 +38,7 @@ mutable struct EnvState
 
     # TODO: add something for other cars here
 end
+Base.copy(e::EnvState) = EnvState(e.params, e.roadway, e.agent, e.init_lane)
 
 action_space(params::EnvParams) = ([-4.0, -0.4], [2.0, 0.4])
 observation_space(params::EnvParams) = (fill(-Inf, params.o_dim), fill(Inf, params.o_dim))
@@ -62,7 +64,9 @@ end
 function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     v0 = rand() * params.v_des
     s0 = rand() * (params.length / 4.0)
-    ego = Entity(AgentState(roadway, v=v0, s=s0), EgoVehicle(), EGO_ID)
+    t0 = (2 * DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
+    ϕ0 = (2 * rand() - 1) * 0.6 # max steering angle
+    ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0), EgoVehicle(), EGO_ID)
     return Frame([ego])
 end
 
@@ -154,13 +158,16 @@ function Base.step(env::EnvState, action::Vector{Float32})
             if headway <= 0.0
                 r += 10.0
             end
+
+        else
+            r -= 10.0
         end
     end
     veh = get_by_id(env.agent, EGO_ID)
     info = [veh.state.state.posF.s, veh.state.state.posF.t,
                 veh.state.state.posF.ϕ, veh.state.state.v]
 
-    (o, r, terminal, info, env)
+    (o, r, terminal, info, copy(env))
 end
 
 function AutoViz.render(env::EnvState)
@@ -168,8 +175,17 @@ function AutoViz.render(env::EnvState)
     cam = FitToContentCamera(0.01)
 
     veh = get_by_id(env.agent, EGO_ID)
-    push!(scene, veh)
-    render!(scene, env.roadway, cam=cam)
+    push!(scene, Vehicle(veh))
+    render(scene, env.roadway, cam=cam)
+end
+
+function save_gif(envs::Vector{EnvState}, filename::String="default.gif")
+    framerate = Int64(1.0/envs[1].params.dt)
+    frames = Reel.Frames(MIME("image/png"), fps=framerate)
+    for e in envs
+        push!(frames, render(e))
+    end
+    Reel.write(filename, frames)
 end
 
 end # module

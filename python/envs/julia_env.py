@@ -21,11 +21,15 @@ class JuliaEnv(gym.Env):
         self.j_env_obj = None
         self._action_space = None
         self._observation_space = None
+        self.j_envs = []
 
         self.param_dict = param_dict
 
     def reset(self, render=False):
+        del self.j_envs[:]
+
         env, obs, params = self.j.reset(self.param_dict)
+        self.j_envs.append(env)
         self.j_env_obj = env
         self.j_env_params = params
 
@@ -36,14 +40,15 @@ class JuliaEnv(gym.Env):
 
         return obs
 
-    def render(self):
-        raise NotImplementedError
+    def render(self, filename="default.gif"):
+        self.j.save_gif(self.j_envs, filename)
 
     def save_gif(self, actions, filename):
         raise NotImplementedError
 
     def step(self, action):
         obs, reward, done, info, env = self.j.step(self.j_env_obj, action)
+        self.j_envs.append(env)
         self.j_env_obj = env
 
         return obs, reward, done, info

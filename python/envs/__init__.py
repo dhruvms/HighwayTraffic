@@ -14,4 +14,13 @@ register(
     		}
 )
 
+register(
+    id='LaneChange-v0',
+    entry_point='envs.julia_env:JuliaEnv',
+    kwargs={
+    			'env_name': 'LaneChange',
+    			'param_dict': {},
+    		}
+)
+
 from julia_env import JuliaEnv

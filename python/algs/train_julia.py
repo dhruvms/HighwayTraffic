@@ -12,7 +12,7 @@ import torch
 from models import A2C
 import envs # registers the environment
 
-def evaluate(agent, env, args, logfile, render=False, log=True):
+def evaluate(agent, env, args, logfile, render_episode=False, log=True):
     agent.eval()
 
     eval_reward = 0.0
@@ -21,8 +21,6 @@ def evaluate(agent, env, args, logfile, render=False, log=True):
         state = env.reset()
         ep_reward = 0.0
         for t in range(1, args.max_steps+1):
-            if render:
-                env.render()
 
             action = agent.select_action(state)
             action = np.clip(action, env.action_space.low, env.action_space.high)
@@ -30,7 +28,7 @@ def evaluate(agent, env, args, logfile, render=False, log=True):
             next_state, reward, terminal, debug = env.step(action)
 
             if args.debug:
-                s_f, t_f, phi_f, v_ego = debug
+                s_f, t_f, phi_f, v_ego = debug[:4]
                 print("EVAL | (s, t, phi, v) = (%3.2f, %3.2f, %3.2f, %3.2f)" % (s_f, t_f, phi_f, v_ego))
 
             state = next_state
@@ -42,6 +40,15 @@ def evaluate(agent, env, args, logfile, render=False, log=True):
                 break
 
         eval_reward += ep_reward
+
+        if render_episode:
+            model = args.actor_model.split("_")[-1]
+            model = model.split(".")[0]
+            gifdir = args.actor_model[:args.actor_model.rfind("/")+1] + 'gifs_%s/' % model
+            if not os.path.exists(gifdir):
+                os.makedirs(gifdir)
+            filename = gifdir + 'test_%d.gif' % (episode)
+            env.render(filename=filename)
 
     if log:
         avg_reward = eval_reward / args.eval_episodes
@@ -82,7 +89,7 @@ def train_ddpg(args):
 
             next_state, reward, terminal, debug = env.step(action)
             if args.debug:
-                s_f, t_f, phi_f, v_ego = debug
+                s_f, t_f, phi_f, v_ego = debug[:4]
                 print("(s, t, phi, v) = (%3.2f, %3.2f, %3.2f, %3.2f)" % (s_f, t_f, phi_f, v_ego))
                 logfile.write("(Episode, Step): (%d, %d) | (s, t, phi, v) = (%3.2f, %3.2f, %3.2f, %3.2f)\n" % (episode, t, s_f, t_f, phi_f, v_ego))
                 logfile.flush()
@@ -148,6 +155,23 @@ def train_ddpg(args):
     evaluate(agent, env, args, logfile)
     logfile.close()
 
+def test_ddpg(args):
+    if not args.actor_model:
+        print('ERROR: Need trained model folder.')
+        return
+
+    env = gym.make(args.env)
+    _ = env.reset()
+    state_dim = env.observation_space.shape
+    action_dim = env.action_space.shape
+    action_lim = env.action_space.high
+
+    agent = A2C(state_dim, action_dim, action_lim,
+                update_type=args.update, batch_size=args.batch_size)
+    agent.load_actor(args.actor_model)
+
+    evaluate(agent, env, args, None, render_episode=True, log=False)
+
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -178,8 +202,8 @@ def parse_args():
     parser.add_argument('--eval-episodes', type=int, default=10,
                         help='Evaluation episodes')
 
-    # parser.add_argument('--test-folder', type=str, default='',
-    #                     help='Folder with trained model data')
+    parser.add_argument('--actor-model', type=str, default='',
+                        help='Path to trained actor model')
 
     parser.add_argument('--debug', action='store_true',
         help='Print debug info')
@@ -190,5 +214,5 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    train_ddpg(args)
-    # test_ddpg(args)
+    # train_ddpg(args)
+    test_ddpg(args)

@@ -93,8 +93,10 @@ class A2C():
         torch.save(self.critic.state_dict(), filename('critic'))
         torch.save(self.target_critic.state_dict(), filename('target_critic'))
 
-    def load_actor(self, folder):
-        filename = lambda type : folder + '%s' % type + '_solved.pth'
+    def load_actor(self, actor_filepath):
+        qualifier = '_' + actor_filepath.split("_")[-1]
+        folder = actor_filepath[:actor_filepath.rfind("/")+1]
+        filename = lambda type : folder + '%s' % type + qualifier
 
         self.actor.load_state_dict(torch.load(filename('actor'),
                                                     map_location=self.device))
