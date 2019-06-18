@@ -1,0 +1,31 @@
+#change the hardstatus settings to give an window list at the bottom of the
+#screen, with the time and date and with the current window highlighted
+hardstatus alwayslastline
+hardstatus string '%{= kW}%-Lw%{= KG}%50>%n%f* %t%{= kW}%+Lw%< %{= kG}%-=%D %d %M %Y %c:%s%{-}'
+startup_message off
+#escape ^Xx
+defscrollback 4096
+vbell off
+altscreen on
+
+bindkey ^[[1;5D prev
+bindkey ^[[1;5C next
+
+
+# ctrl+a,()
+bind s source $HOME/.screenrc
+bind ^s source $HOME/.screenrc
+bind f fit
+bind ^f fit
+bind w copy
+bind ^w copy
+bind . copy
+
+terminfo * F3=^[OR
+terminfo * F4=^[OS
+bindkey -k F3 prev
+bindkey -k F4 next
+
+# for page scroll and copy to buffer in copy mode
+bindkey -m ^W stuff ^Y
+bindkey -m . stuff >
