@@ -3,10 +3,7 @@ import numpy as np
 import gym
 from gym.spaces import Box
 
-# from config import LANE_FOLLOW_PATH
-
-JULIA_ENV_DICT = {}
-JULIA_ENV_DICT["LaneFollow"] = "/home/dsaxena/work/code/hri/HighwayHRL/julia/src/envs/LaneFollow.jl"
+from config import JULIA_ENV_DICT
 
 class JuliaEnv(gym.Env):
     def __init__(self,
@@ -46,8 +43,7 @@ class JuliaEnv(gym.Env):
         raise NotImplementedError
 
     def step(self, action):
-        info = {}
-        obs, reward, done, env = self.j.step(self.j_env_obj, action)
+        obs, reward, done, info, env = self.j.step(self.j_env_obj, action)
         self.j_env_obj = env
 
         return obs, reward, done, info

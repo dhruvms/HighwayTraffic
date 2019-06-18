@@ -105,22 +105,28 @@ function Base.reset(paramdict::Dict)
     (env, o, params)
 end
 
-function tick!(env::EnvState, action::Vector{Float64})
+function tick!(env::EnvState, action::Vector{Float32})
     veh = get_by_id(env.agent, EGO_ID)
     env.agent = Frame([propagate(veh, action, env.roadway, env.params.dt)])
     env
 end
 
-function reward(env::EnvState, action::Vector{Float64})
+function reward(env::EnvState, action::Vector{Float32})
     veh = get_by_id(env.agent, EGO_ID)
     veh_proj = Frenet(veh.state.state.posG, env.roadway[env.init_lane], env.roadway)
+    dist = distance_from_end(env.params, veh)
 
     reward = 1.0
+    # action cost
     reward -= env.params.a_cost * action[1]
     reward -= env.params.δ_cost * action[2]
+    # desired velocity cost
     reward -= env.params.v_cost * abs(veh.state.state.v - env.params.v_des)
+    # lane follow cost
     reward -= env.params.ϕ_cost * abs(veh_proj.ϕ)
     reward -= env.params.t_cost * abs(veh_proj.t)
+    # distance covered reward
+    reward += 1.0 - dist
 
     reward
 end
@@ -138,7 +144,7 @@ function is_terminal(env::EnvState)
     done
 end
 
-function Base.step(env::EnvState, action::Vector{Float64})
+function Base.step(env::EnvState, action::Vector{Float32})
     tick!(env, action) # move to next state
     r = reward(env, action)
     o, in_lane, headway = observe(env)
@@ -151,8 +157,11 @@ function Base.step(env::EnvState, action::Vector{Float64})
             end
         end
     end
+    veh = get_by_id(env.agent, EGO_ID)
+    info = [veh.state.state.posF.s, veh.state.state.posF.t,
+                veh.state.state.posF.ϕ, veh.state.state.v]
 
-    (o, r, terminal, env)
+    (o, r, terminal, info, env)
 end
 
 function AutoViz.render(env::EnvState)

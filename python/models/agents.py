@@ -17,15 +17,15 @@ class A2C():
         self.device = torch.device("cuda:0" if torch.cuda.is_available()
                                         else "cpu")
 
-        self.actor = Actor(state_dim[0], action_dim, action_lim)
+        self.actor = Actor(state_dim, action_dim, action_lim)
         self.actor_optim = optim.Adam(self.actor.parameters(), lr=lr_actor)
-        self.target_actor = Actor(state_dim[0], action_dim, action_lim)
+        self.target_actor = Actor(state_dim, action_dim, action_lim)
         self.target_actor.load_state_dict(self.actor.state_dict())
         self.target_actor.eval()
 
-        self.critic = Critic(state_dim[0], action_dim)
+        self.critic = Critic(state_dim, action_dim)
         self.critic_optim = optim.Adam(self.critic.parameters(), lr=lr_critic, weight_decay=1e-2)
-        self.target_critic = Critic(state_dim[0], action_dim)
+        self.target_critic = Critic(state_dim, action_dim)
         self.target_critic.load_state_dict(self.critic.state_dict())
         self.target_critic.eval()
 
@@ -40,7 +40,7 @@ class A2C():
         self.critic.to(self.device)
         self.target_critic.to(self.device)
 
-        self.memory = Memory(int(mem_size), (action_dim,), state_dim)
+        self.memory = Memory(int(mem_size), action_dim, state_dim)
 
         mu = np.zeros(action_dim)
         sigma = 1.0
