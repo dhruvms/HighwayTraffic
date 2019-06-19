@@ -8,95 +8,46 @@ using Reel
 export reset, step, render, save_gif, dict_to_params
 export action_space, observation_space, EnvParams
 
-const EGO_ID = 1
-
-mutable struct EnvParams
-    length::Float64 # length of roadway
-    lanes::Int64 # number of lanes in roadway
-    cars::Int64 # number of cars on roadway, including egovehicle
-    v_des::Float64 # desired velocity
-    dt::Float64 # timestep
-    o_dim::Int64 # observation space dimension
-
-    # TODO: add any reward params here
-    a_cost::Float64
-    δ_cost::Float64
-    v_cost::Float64
-    ϕ_cost::Float64
-    t_cost::Float64
-end
-
-include("../agent/agent.jl")
+include("./structures.jl")
 include("./helpers.jl")
-
-mutable struct EnvState
-    params::EnvParams
-    roadway::Roadway{Float64}
-
-    agent::Frame{Agent}
-    init_lane::LaneTag
-
-    # TODO: add something for other cars here
-end
-Base.copy(e::EnvState) = EnvState(e.params, e.roadway, e.agent, e.init_lane)
-
-action_space(params::EnvParams) = ([-4.0, -0.4], [2.0, 0.4])
-observation_space(params::EnvParams) = (fill(-Inf, params.o_dim), fill(Inf, params.o_dim))
-
-function dict_to_params(params::Dict)
-    length = get(params, "length", 200.0)
-    lanes = get(params, "lanes", 2)
-    cars = get(params, "cars", 1)
-    v_des = get(params, "v_des", 10.0)
-    dt = get(params, "dt", 0.2)
-    o_dim = get(params, "o_dim", 7)
-
-    a_cost = get(params, "a_cost", 0.1)
-    δ_cost = get(params, "d_cost", 0.01)
-    v_cost = get(params, "v_cost", 0.2)
-    ϕ_cost = get(params, "phi_cost", 0.35)
-    t_cost = get(params, "t_cost", 0.34)
-
-    EnvParams(length, lanes, cars, v_des, dt, o_dim,
-                a_cost, δ_cost, v_cost, ϕ_cost, t_cost)
-end
-
-function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
-    v0 = rand() * params.v_des
-    s0 = rand() * (params.length / 4.0)
-    t0 = (2 * DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
-    ϕ0 = (2 * rand() - 1) * 0.6 # max steering angle
-    ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0), EgoVehicle(), EGO_ID)
-    return Frame([ego])
-end
+include("../agent/agent.jl")
 
 function make_env(params::EnvParams)
     roadway = gen_straight_roadway(params.lanes, params.length)
+
     ego = get_initial_egostate(params, roadway)
-    veh = get_by_id(ego, EGO_ID)
-    lane = get_lane(roadway, veh.state.state)
-    EnvState(params, roadway, ego, lane.tag)
+    ego = get_by_id(ego, EGO_ID)
+    lane = get_lane(roadway, ego.state.state)
+
+    scene, models, colours = populate_others(params)
+    push!(scene, Vehicle(ego))
+    colours[EGO_ID] = COLOR_CAR_EGO
+
+    EnvState(params, roadway, scene, lane.tag, models, colours)
 end
 
 function observe(env::EnvState)
-    veh = get_by_id(env.agent, EGO_ID)
+    ego = env.scene[findfirst(EGO_ID, env.scene)]
 
     # Ego features
-    d_lon = distance_from_end(env.params, veh)
+    d_lon = distance_from_end(env.params, ego)
 
-    lane = get_lane(env.roadway, veh.state.state)
+    lane = get_lane(env.roadway, ego.state.state)
     in_lane = lane.tag == env.init_lane ? 1 : 0
 
-    veh_proj = Frenet(veh.state.state.posG, env.roadway[env.init_lane], env.roadway)
-    t = veh_proj.t # displacement from lane
-    ϕ = veh_proj.ϕ # angle relative to lane
+    ego_proj = Frenet(ego.state.state.posG, env.roadway[env.init_lane], env.roadway)
+    t = ego_proj.t # displacement from lane
+    ϕ = ego_proj.ϕ # angle relative to lane
 
-    v = veh.state.state.v
-    a = veh.state.a
-    δ = veh.state.δ
+    v = ego.state.state.v
+    a = ego.state.a
+    δ = ego.state.δ
 
     # TODO: normalise?
-    o = [d_lon, in_lane, t, ϕ, v, a, δ]
+    ego_o = [d_lon, in_lane, t, ϕ, v, a, δ]
+    other_o = get_neighbour_features(env)
+    o = vcat(ego_o, other_o)
+
     return o, in_lane, d_lon
 end
 
@@ -107,48 +58,81 @@ function Base.reset(paramdict::Dict)
 
     (env, o, params)
 end
+function is_terminal(env::EnvState)
+    done = false
 
-function tick!(env::EnvState, action::Vector{Float32})
-    veh = get_by_id(env.agent, EGO_ID)
-    env.agent = Frame([propagate(veh, action, env.roadway, env.params.dt)])
-    env
+    ego = env.scene[findfirst(EGO_ID, env.scene)]
+    dist = distance_from_end(env.params, ego)
+    road_proj = proj(ego.state.state.posG, env.roadway)
+
+    done = done || (dist <= 0.0) # no more road left
+    done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
+    done = done || (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) # off roadway
+    done = done || is_crash(env.scene)
+    done
 end
 
 function reward(env::EnvState, action::Vector{Float32})
-    veh = get_by_id(env.agent, EGO_ID)
-    veh_proj = Frenet(veh.state.state.posG, env.roadway[env.init_lane], env.roadway)
-    dist = distance_from_end(env.params, veh)
+    ego = env.scene[findfirst(EGO_ID, env.scene)]
+    ego_proj = Frenet(ego.state.state.posG, env.roadway[env.init_lane], env.roadway)
+    dist = distance_from_end(env.params, ego)
 
     reward = 1.0
     # action cost
     reward -= env.params.a_cost * abs(action[1])
     reward -= env.params.δ_cost * abs(action[2])
     # desired velocity cost
-    reward -= env.params.v_cost * abs(veh.state.state.v - env.params.v_des)
+    reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
     # lane follow cost
-    reward -= env.params.ϕ_cost * abs(veh_proj.ϕ)
-    reward -= env.params.t_cost * abs(veh_proj.t)
+    reward -= env.params.ϕ_cost * abs(ego_proj.ϕ)
+    reward -= env.params.t_cost * abs(ego_proj.t)
     # distance covered reward
     reward += 1.0 - dist
 
     reward
 end
 
-function is_terminal(env::EnvState)
-    done = false
+function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float32},
+                                        actions::Vector{Any})
+    for i in 1:length(env.scene)
+        veh = env.scene[findfirst(i, env.scene)]
+        if veh.id == EGO_ID
+            env.scene[i] = propagate(veh, action, env.roadway, env.params.dt)
+        else
+            state′ = propagate(veh, actions[i], env.roadway, env.params.dt)
+            env.scene[i] = Entity(state′, veh.def, veh.id)
+        end
+    end
 
-    veh = get_by_id(env.agent, EGO_ID)
-    dist = distance_from_end(env.params, veh)
-    road_proj = proj(veh.state.state.posG, env.roadway)
+    env
+end
 
-    done = done || (dist <= 0.0) # no more road left
-    done = done || (veh.state.state.v < 0.0) # vehicle has negative velocity
-    done = done || (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) # off roadway
-    done
+function AutomotiveDrivingModels.get_actions!(
+    actions::Vector{A},
+    scene::EntityFrame{S, D, I},
+    roadway::R,
+    models::Dict{I, M}, # id → model
+    ) where {S, D, I, A, R, M <: DriverModel}
+
+
+    for (i, veh) in enumerate(scene)
+        if veh.id == EGO_ID
+            continue
+        end
+
+        model = models[veh.id]
+        observe!(model, scene, roadway, veh.id)
+        actions[i] = rand(model)
+    end
+
+    actions
 end
 
 function Base.step(env::EnvState, action::Vector{Float32})
-    tick!(env, action) # move to next state
+    other_actions = Array{Any}(undef, length(env.scene - 1))
+    get_actions!(other_actions, env.scene, env.roadway, env.models)
+
+    tick!(env, action, other_actions) # move to next state
     r = reward(env, action)
     o, in_lane, headway = observe(env)
     terminal = is_terminal(env)
@@ -163,9 +147,9 @@ function Base.step(env::EnvState, action::Vector{Float32})
             r -= 10.0
         end
     end
-    veh = get_by_id(env.agent, EGO_ID)
-    info = [veh.state.state.posF.s, veh.state.state.posF.t,
-                veh.state.state.posF.ϕ, veh.state.state.v]
+    ego = env.scene[findfirst(EGO_ID, env.scene)]
+    info = [ego.state.state.posF.s, ego.state.state.posF.t,
+                ego.state.state.posF.ϕ, ego.state.state.v]
 
     (o, r, terminal, info, copy(env))
 end
@@ -174,13 +158,13 @@ function AutoViz.render(env::EnvState)
     scene = Scene()
     cam = FitToContentCamera(0.01)
 
-    veh = get_by_id(env.agent, EGO_ID)
-    push!(scene, Vehicle(veh))
+    ego = env.scene[findfirst(EGO_ID, env.scene)]
+    push!(scene, Vehicle(ego))
     render(scene, env.roadway, cam=cam)
 end
 
 function save_gif(envs::Vector{EnvState}, filename::String="default.gif")
-    framerate = Int64(1.0/envs[1].params.dt)
+    framerate = Int(1.0/envs[1].params.dt)
     frames = Reel.Frames(MIME("image/png"), fps=framerate)
     for e in envs
         push!(frames, render(e))
