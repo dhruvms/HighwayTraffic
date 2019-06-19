@@ -1,3 +1,5 @@
+using Dierckx
+
 const Δs_deriv = [0.1, 0.1, 0.1, 0.01, 0.01, 0.01]
 const MAX_a = 3.5
 const MIN_a = -4.0

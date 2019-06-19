@@ -8,26 +8,28 @@ using Reel
 export reset, step, render, save_gif, dict_to_params
 export action_space, observation_space, EnvParams
 
+include("../agent/agent.jl")
 include("./structures.jl")
 include("./helpers.jl")
-include("../agent/agent.jl")
+include("../behaviours/mpc_driver.jl")
 
 function make_env(params::EnvParams)
     roadway = gen_straight_roadway(params.lanes, params.length)
 
     ego = get_initial_egostate(params, roadway)
-    ego = get_by_id(ego, EGO_ID)
-    lane = get_lane(roadway, ego.state.state)
+    veh = get_by_id(ego, EGO_ID)
+    lane = get_lane(roadway, veh.state.state)
 
-    scene, models, colours = populate_others(params)
-    push!(scene, Vehicle(ego))
+    scene, models, colours = populate_others(params, roadway)
+    push!(scene, Vehicle(veh))
     colours[EGO_ID] = COLOR_CAR_EGO
 
-    EnvState(params, roadway, scene, lane.tag, models, colours)
+    EnvState(params, roadway, scene, ego, lane.tag, models, colours)
 end
 
 function observe(env::EnvState)
-    ego = env.scene[findfirst(EGO_ID, env.scene)]
+    # ego = env.scene[findfirst(EGO_ID, env.scene)]
+    ego = get_by_id(env.ego, EGO_ID)
 
     # Ego features
     d_lon = distance_from_end(env.params, ego)
@@ -54,26 +56,31 @@ end
 function Base.reset(paramdict::Dict)
     params = dict_to_params(paramdict)
     env = make_env(params)
+    while is_terminal(env, init=true)
+        env = make_env(params)
+    end
     o, _, _ = observe(env)
 
     (env, o, params)
 end
-function is_terminal(env::EnvState)
+function is_terminal(env::EnvState; init::Bool=false)
     done = false
 
-    ego = env.scene[findfirst(EGO_ID, env.scene)]
+    # ego = env.scene[findfirst(EGO_ID, env.scene)]
+    ego = get_by_id(env.ego, EGO_ID)
     dist = distance_from_end(env.params, ego)
     road_proj = proj(ego.state.state.posG, env.roadway)
 
     done = done || (dist <= 0.0) # no more road left
     done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
     done = done || (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) # off roadway
-    done = done || is_crash(env.scene)
+    done = done || is_crash(env, init=init)
     done
 end
 
 function reward(env::EnvState, action::Vector{Float32})
-    ego = env.scene[findfirst(EGO_ID, env.scene)]
+    # ego = env.scene[findfirst(EGO_ID, env.scene)]
+    ego = get_by_id(env.ego, EGO_ID)
     ego_proj = Frenet(ego.state.state.posG, env.roadway[env.init_lane], env.roadway)
     dist = distance_from_end(env.params, ego)
 
@@ -95,9 +102,12 @@ end
 function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float32},
                                         actions::Vector{Any})
     for i in 1:length(env.scene)
-        veh = env.scene[findfirst(i, env.scene)]
+        veh = env.scene[i]
         if veh.id == EGO_ID
-            env.scene[i] = propagate(veh, action, env.roadway, env.params.dt)
+            ego = get_by_id(env.ego, EGO_ID)
+            state′ = propagate(ego, action, env.roadway, env.params.dt)
+            env.scene[i] = Vehicle(state′)
+            env.ego = Frame([state′])
         else
             state′ = propagate(veh, actions[i], env.roadway, env.params.dt)
             env.scene[i] = Entity(state′, veh.def, veh.id)
@@ -121,7 +131,7 @@ function AutomotiveDrivingModels.get_actions!(
         end
 
         model = models[veh.id]
-        observe!(model, scene, roadway, veh.id)
+        AutomotiveDrivingModels.observe!(model, scene, roadway, veh.id)
         actions[i] = rand(model)
     end
 
@@ -129,8 +139,8 @@ function AutomotiveDrivingModels.get_actions!(
 end
 
 function Base.step(env::EnvState, action::Vector{Float32})
-    other_actions = Array{Any}(undef, length(env.scene - 1))
-    get_actions!(other_actions, env.scene, env.roadway, env.models)
+    other_actions = Array{Any}(undef, length(env.scene) - 1)
+    get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
 
     tick!(env, action, other_actions) # move to next state
     r = reward(env, action)
@@ -148,19 +158,16 @@ function Base.step(env::EnvState, action::Vector{Float32})
         end
     end
     ego = env.scene[findfirst(EGO_ID, env.scene)]
-    info = [ego.state.state.posF.s, ego.state.state.posF.t,
-                ego.state.state.posF.ϕ, ego.state.state.v]
+    info = [ego.state.posF.s, ego.state.posF.t,
+                ego.state.posF.ϕ, ego.state.v]
 
     (o, r, terminal, info, copy(env))
 end
 
 function AutoViz.render(env::EnvState)
-    scene = Scene()
     cam = FitToContentCamera(0.01)
 
-    ego = env.scene[findfirst(EGO_ID, env.scene)]
-    push!(scene, Vehicle(ego))
-    render(scene, env.roadway, cam=cam)
+    render(env.scene, env.roadway, cam=cam, car_colors=env.colours)
 end
 
 function save_gif(envs::Vector{EnvState}, filename::String="default.gif")

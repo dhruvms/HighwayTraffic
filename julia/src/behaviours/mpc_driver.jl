@@ -1,3 +1,9 @@
+using Distributions
+
+include("../mpc/helpers.jl")
+include("../mpc/motion_model.jl")
+include("../mpc/mpc_traj_gen.jl")
+
 """
 	MPCDriver <: LaneFollowingDriver
 
