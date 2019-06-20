@@ -17,6 +17,7 @@ mutable struct EnvParams
     # other driver parameters
     num_others::Int
     random::Bool
+    stadium::Bool
 end
 
 mutable struct EnvState
@@ -27,7 +28,6 @@ mutable struct EnvState
     ego::Frame{Agent}
     init_lane::LaneTag
 
-    # TODO: add something for other cars here
     other_cars::Dict{Int, DriverModel}
     colours::Dict{Int, Colorant}
 end

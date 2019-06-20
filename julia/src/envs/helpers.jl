@@ -31,7 +31,7 @@ function distance_from_end(params::EnvParams, veh::Agent)
 end
 
 function dict_to_params(params::Dict)
-    length = get(params, "length", 200.0)
+    length = get(params, "length", 100.0)
     lanes = get(params, "lanes", 2)
     cars = get(params, "cars", 1)
     v_des = get(params, "v_des", 10.0)
@@ -44,21 +44,23 @@ function dict_to_params(params::Dict)
     ϕ_cost = get(params, "phi_cost", 0.35)
     t_cost = get(params, "t_cost", 0.34)
 
-    num_others = get(params, "num_others", 4)
+    num_others = get(params, "num_others", 5)
     random = get(params, "random_others", true)
+    stadium = get(params, "stadium", false)
 
     EnvParams(length, lanes, cars, v_des, dt, o_dim,
                 a_cost, δ_cost, v_cost, ϕ_cost, t_cost,
-                num_others, random)
+                num_others, random, stadium)
 end
 
 function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     v0 = rand() * params.v_des
-    s0 = rand() * (params.length / 6.0)
-    t0 = (2 * DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
+    s0 = rand() * ((params.length / 2.0) / params.num_others)
+    lane0 = LaneTag(rand(1:(4*params.stadium + 1*!params.stadium)), rand(1:params.lanes))
+    t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
     ϕ0 = (2 * rand() - 1) * 0.6 # max steering angle
-    ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0), EgoVehicle(), EGO_ID)
-    return Frame([ego])
+    ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0), EgoVehicle(), EGO_ID)
+    return Frame([ego]), lane0
 end
 
 function populate_others(params::EnvParams, roadway::Roadway{Float64})
@@ -67,6 +69,7 @@ function populate_others(params::EnvParams, roadway::Roadway{Float64})
     models = Dict{Int, DriverModel}()
 
     v_num = EGO_ID + 1
+    room = (params.length / 2.0) / params.num_others
     for i in 1:params.num_others
         type = rand()
         if !params.random
@@ -74,8 +77,8 @@ function populate_others(params::EnvParams, roadway::Roadway{Float64})
         end
 
         v0 = rand() * params.v_des
-        s0 = rand() * (params.length / 4.0)
-        lane0 = LaneTag(1, rand(1:params.lanes))
+        s0 = i * room
+        lane0 = LaneTag(rand(1:(4*params.stadium + 1*!params.stadium)), rand(1:params.lanes))
         t0 = 0.0
         ϕ0 = 0.0
         posF = Frenet(roadway[lane0], s0, t0, ϕ0)

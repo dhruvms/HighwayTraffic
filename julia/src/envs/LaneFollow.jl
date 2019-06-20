@@ -13,18 +13,24 @@ include("./structures.jl")
 include("./helpers.jl")
 include("../behaviours/mpc_driver.jl")
 
-function make_env(params::EnvParams)
-    roadway = gen_straight_roadway(params.lanes, params.length)
+# TODO: distance_from_end does not make sense for stadium roadways
 
-    ego = get_initial_egostate(params, roadway)
+function make_env(params::EnvParams)
+    roadway = nothing
+    if params.stadium
+        roadway = gen_stadium_roadway(params.lanes, length=params.length)
+    else
+        roadway = gen_straight_roadway(params.lanes, params.length)
+    end
+
+    ego, lanetag = get_initial_egostate(params, roadway)
     veh = get_by_id(ego, EGO_ID)
-    lane = get_lane(roadway, veh.state.state)
 
     scene, models, colours = populate_others(params, roadway)
     push!(scene, Vehicle(veh))
     colours[EGO_ID] = COLOR_CAR_EGO
 
-    EnvState(params, roadway, scene, ego, lane.tag, models, colours)
+    EnvState(params, roadway, scene, ego, lanetag, models, colours)
 end
 
 function observe(env::EnvState)
