@@ -109,6 +109,11 @@ function reward(env::EnvState, action::Vector{Float32})
     # distance covered reward
     reward += 1.0 - dist
 
+    if env.params.num_others > 0
+        other_o = get_neighbour_features(env)
+        reward += sum(abs.(other_o[(abs.(other_o) .!= 0.0) .& (abs.(other_o) .!= 1.0)]))
+    end
+
     reward
 end
 

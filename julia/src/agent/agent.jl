@@ -89,7 +89,6 @@ const Agent = Entity{AgentState, EgoVehicle, Int64}
 
 function AutomotiveDrivingModels.propagate(veh::Entity{AgentState,EgoVehicle,Int64},
                            action::Vector{Float32}, roadway::Roadway, dt::Float64)
-
     # update acceleration
     a_ = veh.state.a + action[1] * dt
     a_ = clamp(a_, veh.def.a_min, veh.def.a_max)

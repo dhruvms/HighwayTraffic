@@ -128,6 +128,12 @@ function get_neighbour_features(env::EnvState)
     features = [fore_M.Δs, fore_L.Δs, fore_R.Δs,
                 rear_M.Δs, rear_L.Δs, rear_R.Δs]
     features /= env.params.length
+    if !left_lane_exists
+        features[[2, 5]] .= 0.0
+    end
+    if !right_lane_exists
+        features[[3, 6]] .= 0.0
+    end
     features
 end
 

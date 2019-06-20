@@ -4,7 +4,7 @@ screen -t proc1
 stuff "cd ../algs^M"
 stuff "p36ws^M"
 
-stuff "python-jl train_julia.py --seed --update-always --update-batches 1 --episodes 10000^M"
+stuff "python-jl train_julia.py --seed --update-always --update-batches 1 --episodes 5000^M"
 
 screen -t bash
 stuff "p36ws^M"
