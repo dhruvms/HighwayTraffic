@@ -4,6 +4,7 @@ using AutomotiveDrivingModels
 using AutoViz
 using Parameters
 using Reel
+using Printf
 
 export reset, step, render, save_gif, dict_to_params
 export action_space, observation_space, EnvParams
@@ -30,7 +31,9 @@ function make_env(params::EnvParams)
     push!(scene, Vehicle(veh))
     colours[EGO_ID] = COLOR_CAR_EGO
 
-    EnvState(params, roadway, scene, ego, lanetag, models, colours)
+    action = [0.0f0, 0.0f0]
+
+    EnvState(params, roadway, scene, ego, action, lanetag, models, colours)
 end
 
 function observe(env::EnvState)
@@ -53,10 +56,13 @@ function observe(env::EnvState)
 
     # TODO: normalise?
     ego_o = [d_lon, in_lane, t, ϕ, v, a, δ]
-    other_o = get_neighbour_features(env)
-    o = vcat(ego_o, other_o)
+    if env.params.num_others > 0
+        other_o = get_neighbour_features(env)
+        o = vcat(ego_o, other_o)
+        return o, in_lane, d_lon
+    end
 
-    return o, in_lane, d_lon
+    return ego_o, in_lane, d_lon
 end
 
 function Base.reset(paramdict::Dict)
@@ -81,6 +87,7 @@ function is_terminal(env::EnvState; init::Bool=false)
     done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
     done = done || (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) # off roadway
     done = done || is_crash(env, init=init)
+
     done
 end
 
@@ -120,6 +127,7 @@ function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float32},
         end
     end
 
+    env.action = action
     env
 end
 
@@ -173,7 +181,10 @@ end
 function AutoViz.render(env::EnvState)
     cam = FitToContentCamera(0.01)
 
-    render(env.scene, env.roadway, cam=cam, car_colors=env.colours)
+    jerk_text = @sprintf("Jerk:  %2.2f m/s^3", env.action[1])
+    δrate_text = @sprintf("δ rate:  %2.2f rad/s", env.action[2])
+    action_overlay = TextOverlay(text=[jerk_text, δrate_text], font_size=18)
+    render(env.scene, env.roadway, [action_overlay], cam=cam, car_colors=env.colours)
 end
 
 function save_gif(envs::Vector{EnvState}, filename::String="default.gif")

@@ -44,9 +44,13 @@ function dict_to_params(params::Dict)
     ϕ_cost = get(params, "phi_cost", 0.35)
     t_cost = get(params, "t_cost", 0.34)
 
-    num_others = get(params, "num_others", 5)
+    num_others = get(params, "num_others", 4)
     random = get(params, "random_others", true)
     stadium = get(params, "stadium", false)
+
+    if num_others == 0
+        o_dim = 7
+    end
 
     EnvParams(length, lanes, cars, v_des, dt, o_dim,
                 a_cost, δ_cost, v_cost, ϕ_cost, t_cost,
@@ -55,7 +59,7 @@ end
 
 function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     v0 = rand() * params.v_des
-    s0 = rand() * ((params.length / 2.0) / params.num_others)
+    s0 = rand() * ((params.length / 2.0) / max(1, params.num_others))
     lane0 = LaneTag(rand(1:(4*params.stadium + 1*!params.stadium)), rand(1:params.lanes))
     t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
     ϕ0 = (2 * rand() - 1) * 0.6 # max steering angle
@@ -69,7 +73,7 @@ function populate_others(params::EnvParams, roadway::Roadway{Float64})
     models = Dict{Int, DriverModel}()
 
     v_num = EGO_ID + 1
-    room = (params.length / 2.0) / params.num_others
+    room = (params.length / 2.0) / max(1, params.num_others)
     for i in 1:params.num_others
         type = rand()
         if !params.random
@@ -107,18 +111,19 @@ end
 
 function get_neighbour_features(env::EnvState)
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
-    ego = get_by_id(env.ego, EGO_ID)
+    ego_idx = findfirst(EGO_ID, env.scene)
+    ego = env.scene[findfirst(EGO_ID, env.scene)]
 
-    road_proj = proj(ego.state.state.posG, env.roadway)
+    road_proj = proj(ego.state.posG, env.roadway)
 
     left_lane_exists = road_proj.tag.lane < env.params.lanes
     right_lane_exists = road_proj.tag.lane > 1
-    fore_M = get_neighbor_fore_along_lane(env.scene, EGO_ID, env.roadway, VehicleTargetPointFront(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=env.params.length)
-    fore_L = get_neighbor_fore_along_left_lane(env.scene, EGO_ID, env.roadway, VehicleTargetPointRear(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=env.params.length)
-    fore_R = get_neighbor_fore_along_right_lane(env.scene, EGO_ID, env.roadway, VehicleTargetPointRear(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=env.params.length)
-    rear_M = get_neighbor_rear_along_lane(env.scene, EGO_ID, env.roadway, VehicleTargetPointFront(), VehicleTargetPointFront(), VehicleTargetPointRear(), max_distance_rear=env.params.length)
-    rear_L = get_neighbor_rear_along_left_lane(env.scene, EGO_ID, env.roadway, VehicleTargetPointFront(), VehicleTargetPointFront(), VehicleTargetPointRear(), max_distance_rear=env.params.length)
-    rear_R = get_neighbor_rear_along_right_lane(env.scene, EGO_ID, env.roadway, VehicleTargetPointFront(), VehicleTargetPointFront(), VehicleTargetPointRear(), max_distance_rear=env.params.length)
+    fore_M = get_neighbor_fore_along_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointFront(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=env.params.length)
+    fore_L = get_neighbor_fore_along_left_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointRear(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=env.params.length)
+    fore_R = get_neighbor_fore_along_right_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointRear(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=env.params.length)
+    rear_M = get_neighbor_rear_along_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointFront(), VehicleTargetPointFront(), VehicleTargetPointRear(), max_distance_rear=env.params.length)
+    rear_L = get_neighbor_rear_along_left_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointFront(), VehicleTargetPointFront(), VehicleTargetPointRear(), max_distance_rear=env.params.length)
+    rear_R = get_neighbor_rear_along_right_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointFront(), VehicleTargetPointFront(), VehicleTargetPointRear(), max_distance_rear=env.params.length)
 
     features = [fore_M.Δs, fore_L.Δs, fore_R.Δs,
                 rear_M.Δs, rear_L.Δs, rear_R.Δs]

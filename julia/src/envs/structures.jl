@@ -26,13 +26,14 @@ mutable struct EnvState
     scene::Scene
 
     ego::Frame{Agent}
+    action::Vector{Float32}
     init_lane::LaneTag
 
     other_cars::Dict{Int, DriverModel}
     colours::Dict{Int, Colorant}
 end
 Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene), e.ego,
-                                    e.init_lane, e.other_cars, e.colours)
+                                    e.action, e.init_lane, e.other_cars, e.colours)
 
 action_space(params::EnvParams) = ([-4.0, -0.4], [2.0, 0.4])
 observation_space(params::EnvParams) = (fill(-Inf, params.o_dim), fill(Inf, params.o_dim))
