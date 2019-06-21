@@ -57,7 +57,7 @@ def evaluate(agent, env, args, logfile, render_episode=False, log=True):
 
 def train_ddpg(args):
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    savedir = args.logdir + 'julia-sim/' + args.env + '/' + timestr + '/'
+    savedir = args.logdir + 'julia-sim/' + args.env.lower() + '/' + timestr + '/'
     if not os.path.exists(savedir):
         os.makedirs(savedir)
 
@@ -186,7 +186,7 @@ def parse_args():
                         help='Random seed')
     parser.add_argument('--episodes', type=int, default=1500,
                         help='Training episodes')
-    parser.add_argument('--max-steps', type=int, default=500,
+    parser.add_argument('--max-steps', type=int, default=200,
                         help='Max steps per episode')
     parser.add_argument('--update-always', action='store_true',
                         help='Update network every timestep')
@@ -214,5 +214,5 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    train_ddpg(args)
-    # test_ddpg(args)
+    # train_ddpg(args)
+    test_ddpg(args)

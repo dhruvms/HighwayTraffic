@@ -1,3 +1,5 @@
+using Parameters
+
 const L_R = 2.0 # Distance between bicycle rear wheel and CoG (m)
 const L_F = 2.0 # Distance between bicycle front wheel and CoG (m)
 
@@ -82,7 +84,7 @@ function generate_trajectory!(s::MPCState, params::Vector{Float64},
 	noise_a = OrnsteinUhlenbeckNoise([0.0], 0.2, θ=1.0)
 	noise_δ = OrnsteinUhlenbeckNoise([0.0], 0.2, θ=1.0)
 
-	for i in 1:length(times)-1
+	for i in 1:Base.length(times)-1
 		if noisy
 			a_noise = OrnsteinUhlenbeckNoise!(noise_a, timestep)
 			δ_noise = OrnsteinUhlenbeckNoise!(noise_δ, timestep)

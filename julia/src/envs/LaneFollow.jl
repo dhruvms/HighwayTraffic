@@ -2,7 +2,6 @@ module LaneFollow
 
 using AutomotiveDrivingModels
 using AutoViz
-using Parameters
 using Reel
 using Printf
 
@@ -24,7 +23,7 @@ function make_env(params::EnvParams)
         roadway = gen_straight_roadway(params.lanes, params.length)
     end
 
-    ego, s0, lanetag = get_initial_egostate(params, roadway)
+    ego, lanetag = get_initial_egostate(params, roadway)
     veh = get_by_id(ego, EGO_ID)
 
     scene, models, colours = populate_others(params, roadway)
@@ -33,7 +32,7 @@ function make_env(params::EnvParams)
 
     action = [0.0f0, 0.0f0]
 
-    EnvState(params, roadway, scene, ego, s0, action, lanetag, models, colours)
+    EnvState(params, roadway, scene, ego, action, lanetag, models, colours)
 end
 
 function observe(env::EnvState)
@@ -41,7 +40,7 @@ function observe(env::EnvState)
     ego = get_by_id(env.ego, EGO_ID)
 
     # Ego features
-    d_lon = distance_from_end(env, ego)
+    d_lon = distance_from_end(env.params, ego)
 
     lane = get_lane(env.roadway, ego.state.state)
     in_lane = lane.tag == env.init_lane ? 1 : 0
@@ -55,8 +54,8 @@ function observe(env::EnvState)
     δ = ego.state.δ
 
     # TODO: normalise?
-    ego_o = [d_lon, in_lane, t, ϕ, v, a, δ]
-    if env.params.num_others > 0
+    ego_o = [d_lon, in_lane, t, ϕ, v, a, δ, env.action[1], env.action[2]]
+    if env.params.cars - 1 > 0
         other_o = get_neighbour_features(env)
         o = vcat(ego_o, other_o)
         return o, in_lane, d_lon
@@ -80,7 +79,7 @@ function is_terminal(env::EnvState; init::Bool=false)
 
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego = get_by_id(env.ego, EGO_ID)
-    dist = distance_from_end(env, ego)
+    dist = distance_from_end(env.params, ego)
     road_proj = proj(ego.state.state.posG, env.roadway)
 
     done = done || (dist <= 0.0) # no more road left
@@ -95,7 +94,7 @@ function reward(env::EnvState, action::Vector{Float32})
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego = get_by_id(env.ego, EGO_ID)
     ego_proj = Frenet(ego.state.state.posG, env.roadway[env.init_lane], env.roadway)
-    dist = distance_from_end(env, ego)
+    dist = distance_from_end(env.params, ego)
 
     reward = 1.0
     # action cost
@@ -110,10 +109,10 @@ function reward(env::EnvState, action::Vector{Float32})
     # distance covered reward
     reward += 1.0 - dist
 
-    if env.params.num_others > 0
-        other_o = get_neighbour_features(env)
-        reward += sum(abs.(other_o[(abs.(other_o) .!= 0.0) .& (abs.(other_o) .!= 1.0)]))
-    end
+    # if env.params.cars - 1 > 0
+    #     other_o = get_neighbour_features(env)
+    #     reward += sum(abs.(other_o[(abs.(other_o) .!= 0.0) .& (abs.(other_o) .!= 1.0)]))
+    # end
 
     reward
 end

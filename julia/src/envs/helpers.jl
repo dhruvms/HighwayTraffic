@@ -26,17 +26,17 @@ end
 returns the distance remaining before the vehicle reaches the end of the
 roadway
 """
-function distance_from_end(env::EnvState, veh::Agent)
-    return (veh.state.state.posF.s - env.s0) / (env.params.length - env.s0)
+function distance_from_end(params::EnvParams, veh::Agent)
+    return (params.length - veh.state.state.posF.s) / params.length
 end
 
 function dict_to_params(params::Dict)
     length = get(params, "length", 100.0)
     lanes = get(params, "lanes", 2)
-    cars = get(params, "cars", 1)
+    cars = get(params, "cars", 5)
     v_des = get(params, "v_des", 10.0)
     dt = get(params, "dt", 0.2)
-    o_dim = get(params, "o_dim", 13)
+    o_dim = get(params, "o_dim", 15)
 
     v_cost = get(params, "v_cost", 0.001)
     a_cost = get(params, "a_cost", 0.0003)
@@ -45,29 +45,29 @@ function dict_to_params(params::Dict)
     ϕ_cost = get(params, "phi_cost", 0.016)
     t_cost = get(params, "t_cost", 0.006)
 
-    num_others = get(params, "num_others", 5)
     random = get(params, "random_others", true)
     stadium = get(params, "stadium", false)
 
-    if num_others == 0
-        o_dim = 7
+    if cars == 1
+        o_dim = 9
     end
 
     EnvParams(length, lanes, cars, v_des, dt, o_dim,
                 v_cost, a_cost, j_cost, δdot_cost, ϕ_cost, t_cost,
-                num_others, random, stadium)
+                random, stadium)
 end
 
 function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     v0 = rand() * params.v_des
-    s0 = rand() * ((params.length / 2.0) / max(1, params.num_others))
+    # s0 = rand() * ((params.length / 2.0) / max(1, params.cars-1))
+    s0 = 0.0
     lane0 = LaneTag(rand(1:(4*params.stadium + 1*!params.stadium)), rand(1:params.lanes))
     # t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
     # ϕ0 = (2 * rand() - 1) * 0.6 # max steering angle
     t0 = 0.0
     ϕ0 = 0.0
     ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0), EgoVehicle(), EGO_ID)
-    return Frame([ego]), s0, lane0
+    return Frame([ego]), lane0
 end
 
 function populate_others(params::EnvParams, roadway::Roadway{Float64})
@@ -76,8 +76,8 @@ function populate_others(params::EnvParams, roadway::Roadway{Float64})
     models = Dict{Int, DriverModel}()
 
     v_num = EGO_ID + 1
-    room = (params.length / 2.0) / max(1, params.num_others)
-    for i in 1:params.num_others
+    room = (params.length / 2.0) / max(1, params.cars-1)
+    for i in 1:params.cars-1
         type = rand()
         if !params.random
             type = 0.0
@@ -91,7 +91,7 @@ function populate_others(params::EnvParams, roadway::Roadway{Float64})
         posF = Frenet(roadway[lane0], s0, t0, ϕ0)
 
         push!(scene, Vehicle(VehicleState(posF, roadway, 0.0), VehicleDef(), v_num))
-        if type <= 0.05
+        if type <= 0.15
             models[v_num] = MPCDriver(params.dt)
             v0 = 0.0
             carcolours[v_num] = MONOKAI["color3"]

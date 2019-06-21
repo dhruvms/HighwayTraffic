@@ -70,8 +70,8 @@ Calculate the state Jacobian with respect to the trajectory parameters.
 function calc_jacobian(target::MPCState, params::Vector{Float64},
 						hyperparams::Vector{Float64},
 						initial::MPCState)
-    J = zeros(initial.dims, length(params))
-    for col in 1:length(params)
+    J = zeros(initial.dims, Base.length(params))
+    for col in 1:Base.length(params)
         J[:, col] = get_jacobian_column(target, params,
 											col, hyperparams, initial)
     end

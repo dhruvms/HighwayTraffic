@@ -8,14 +8,13 @@ mutable struct EnvParams
     dt::Float64 # timestep
     o_dim::Int # observation space dimension
 
-    a_cost::Float64
-    δ_cost::Float64
     v_cost::Float64
+    a_cost::Float64
+    j_cost::Float64
+    δdot_cost::Float64
     ϕ_cost::Float64
     t_cost::Float64
 
-    # other driver parameters
-    num_others::Int
     random::Bool
     stadium::Bool
 end
@@ -26,7 +25,6 @@ mutable struct EnvState
     scene::Scene
 
     ego::Frame{Agent}
-    s0::Float64
     action::Vector{Float32}
     init_lane::LaneTag
 
@@ -34,7 +32,7 @@ mutable struct EnvState
     colours::Dict{Int, Colorant}
 end
 Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene), e.ego,
-                                    e.s0, e.action, e.init_lane, e.other_cars, e.colours)
+                                    e.action, e.init_lane, e.other_cars, e.colours)
 
 action_space(params::EnvParams) = ([-4.0, -0.4], [2.0, 0.4])
 observation_space(params::EnvParams) = (fill(-Inf, params.o_dim), fill(Inf, params.o_dim))

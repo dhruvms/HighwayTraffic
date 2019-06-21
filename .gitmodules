@@ -1,0 +1,3 @@
+[submodule "python/external/pytorch-a2c-ppo-acktr-gail"]
+	path = python/external/pytorch-a2c-ppo-acktr-gail
+	url = git@github.com:ikostrikov/pytorch-a2c-ppo-acktr-gail.git
