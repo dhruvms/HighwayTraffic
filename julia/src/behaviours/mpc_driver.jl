@@ -135,7 +135,7 @@ end
 2. Pick target state in the egovehicle's Frenet coordinate system
 3. Solve MPC optimisation to get (and execute) first control input
 """
-function observe!(driver::MPCDriver, scene::Scene, roadway::Roadway, egoid::Int)
+function AutomotiveDrivingModels.observe!(driver::MPCDriver, scene::Scene, roadway::Roadway, egoid::Int)
     update!(driver.rec, scene)
 
     self_idx = findfirst(egoid, scene)

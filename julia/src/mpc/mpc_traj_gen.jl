@@ -1,3 +1,4 @@
+using LinearAlgebra
 using Dierckx
 
 const Δs_deriv = [0.1, 0.1, 0.1, 0.01, 0.01, 0.01]

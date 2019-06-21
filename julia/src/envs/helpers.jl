@@ -26,8 +26,8 @@ end
 returns the distance remaining before the vehicle reaches the end of the
 roadway
 """
-function distance_from_end(params::EnvParams, veh::Agent)
-    return (params.length - veh.state.state.posF.s) / params.length
+function distance_from_end(env::EnvState, veh::Agent)
+    return (veh.state.state.posF.s - env.s0) / (env.params.length - env.s0)
 end
 
 function dict_to_params(params::Dict)
@@ -38,13 +38,14 @@ function dict_to_params(params::Dict)
     dt = get(params, "dt", 0.2)
     o_dim = get(params, "o_dim", 13)
 
-    a_cost = get(params, "a_cost", 0.1)
-    δ_cost = get(params, "d_cost", 0.01)
-    v_cost = get(params, "v_cost", 0.2)
-    ϕ_cost = get(params, "phi_cost", 0.35)
-    t_cost = get(params, "t_cost", 0.34)
+    v_cost = get(params, "v_cost", 0.001)
+    a_cost = get(params, "a_cost", 0.0003)
+    j_cost = get(params, "j_cost", 0.32)
+    δdot_cost = get(params, "d_cost", 0.65)
+    ϕ_cost = get(params, "phi_cost", 0.016)
+    t_cost = get(params, "t_cost", 0.006)
 
-    num_others = get(params, "num_others", 4)
+    num_others = get(params, "num_others", 5)
     random = get(params, "random_others", true)
     stadium = get(params, "stadium", false)
 
@@ -53,7 +54,7 @@ function dict_to_params(params::Dict)
     end
 
     EnvParams(length, lanes, cars, v_des, dt, o_dim,
-                a_cost, δ_cost, v_cost, ϕ_cost, t_cost,
+                v_cost, a_cost, j_cost, δdot_cost, ϕ_cost, t_cost,
                 num_others, random, stadium)
 end
 
@@ -61,10 +62,12 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     v0 = rand() * params.v_des
     s0 = rand() * ((params.length / 2.0) / max(1, params.num_others))
     lane0 = LaneTag(rand(1:(4*params.stadium + 1*!params.stadium)), rand(1:params.lanes))
-    t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
-    ϕ0 = (2 * rand() - 1) * 0.6 # max steering angle
+    # t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
+    # ϕ0 = (2 * rand() - 1) * 0.6 # max steering angle
+    t0 = 0.0
+    ϕ0 = 0.0
     ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0), EgoVehicle(), EGO_ID)
-    return Frame([ego]), lane0
+    return Frame([ego]), s0, lane0
 end
 
 function populate_others(params::EnvParams, roadway::Roadway{Float64})
