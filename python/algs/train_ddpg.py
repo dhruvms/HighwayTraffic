@@ -62,7 +62,6 @@ def train_ddpg(args):
         os.makedirs(savedir)
 
     env = gym.make(args.env)
-    _ = env.reset()
     state_dim = env.observation_space.shape
     action_dim = env.action_space.shape
     action_lim = env.action_space.high

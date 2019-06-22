@@ -24,6 +24,7 @@ class JuliaEnv(gym.Env):
         self.j_envs = []
 
         self.param_dict = param_dict
+        _ = self.reset()
 
     def reset(self, render=False):
         del self.j_envs[:]
@@ -50,8 +51,10 @@ class JuliaEnv(gym.Env):
         obs, reward, done, info, env = self.j.step(self.j_env_obj, action)
         self.j_envs.append(env)
         self.j_env_obj = env
+        infos = dict()
+        infos['egostate'] = info
 
-        return obs, reward, done, info
+        return obs, reward, done, infos
 
     @property
     def action_space(self):

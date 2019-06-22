@@ -1,3 +1,5 @@
+using Parameters
+
 """
     EgoVehicle <: AbstractAgentDefinition
 Object representing the physical characteristics and actuation capabilities
