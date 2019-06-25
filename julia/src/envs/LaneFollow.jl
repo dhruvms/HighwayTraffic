@@ -16,12 +16,7 @@ include("../behaviours/mpc_driver.jl")
 # TODO: distance_from_end does not make sense for stadium roadways
 
 function make_env(params::EnvParams)
-    roadway = nothing
-    if params.stadium
-        roadway = gen_stadium_roadway(params.lanes, length=params.length)
-    else
-        roadway = gen_straight_roadway(params.lanes, params.length)
-    end
+    roadway = gen_stadium_roadway(params.lanes, length=params.length, width=0.0, radius=10.0)
 
     ego, lanetag = get_initial_egostate(params, roadway)
     veh = get_by_id(ego, EGO_ID)
@@ -39,9 +34,6 @@ function observe(env::EnvState)
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego = get_by_id(env.ego, EGO_ID)
 
-    # Ego features
-    d_lon = distance_from_end(env.params, ego)
-
     lane = get_lane(env.roadway, ego.state.state)
     in_lane = lane.tag == env.init_lane ? 1 : 0
 
@@ -54,23 +46,36 @@ function observe(env::EnvState)
     δ = ego.state.δ
 
     # TODO: normalise?
-    ego_o = [d_lon, in_lane, t, ϕ, v, a, δ, env.action[1], env.action[2]]
+    ego_o = [in_lane, t, ϕ, v, a, δ, env.action[1], env.action[2]]
     if env.params.cars - 1 > 0
-        other_o = get_neighbour_features(env)
+        other_o = get_neighbour_featurevecs(env)
         o = vcat(ego_o, other_o)
-        return o, in_lane, d_lon
+        return o, in_lane
     end
 
-    return ego_o, in_lane, d_lon
+    return ego_o, in_lane
+end
+
+function burn_in_sim!(env::EnvState; steps::Int=10)
+    other_actions = Array{Any}(undef, length(env.scene) - 1)
+    for step in 1:steps
+        get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
+        tick!(env, [0.0f0, 0.0f0], other_actions)
+    end
+
+    env
 end
 
 function Base.reset(paramdict::Dict)
     params = dict_to_params(paramdict)
     env = make_env(params)
+    burn_in_sim!(env)
     while is_terminal(env, init=true)
         env = make_env(params)
+        burn_in_sim!(env)
     end
-    o, _, _ = observe(env)
+
+    o, _ = observe(env)
 
     (env, o, params)
 end
@@ -79,10 +84,8 @@ function is_terminal(env::EnvState; init::Bool=false)
 
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego = get_by_id(env.ego, EGO_ID)
-    dist = distance_from_end(env.params, ego)
     road_proj = proj(ego.state.state.posG, env.roadway)
 
-    done = done || (dist <= 0.0) # no more road left
     done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
     done = done || (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) # off roadway
     done = done || is_crash(env, init=init)
@@ -94,7 +97,6 @@ function reward(env::EnvState, action::Vector{Float32})
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego = get_by_id(env.ego, EGO_ID)
     ego_proj = Frenet(ego.state.state.posG, env.roadway[env.init_lane], env.roadway)
-    dist = distance_from_end(env.params, ego)
 
     reward = 1.0
     # action cost
@@ -106,8 +108,6 @@ function reward(env::EnvState, action::Vector{Float32})
     # lane follow cost
     reward -= env.params.ϕ_cost * abs(ego_proj.ϕ)
     reward -= env.params.t_cost * abs(ego_proj.t)
-    # distance covered reward
-    reward += 1.0 - dist
 
     # if env.params.cars - 1 > 0
     #     other_o = get_neighbour_features(env)
@@ -163,19 +163,17 @@ function Base.step(env::EnvState, action::Vector{Float32})
 
     tick!(env, action, other_actions) # move to next state
     r = reward(env, action)
-    o, in_lane, headway = observe(env)
+    o, in_lane = observe(env)
     terminal = is_terminal(env)
 
     if Bool(terminal)
+        r -= 10.0
+    else
         if Bool(in_lane)
-            if headway <= 0.0
-                r += 10.0
-            end
-
-        else
-            r -= 10.0
+            r += 1.0
         end
     end
+
     ego = env.scene[findfirst(EGO_ID, env.scene)]
     info = [ego.state.posF.s, ego.state.posF.t,
                 ego.state.posF.ϕ, ego.state.v]
@@ -184,11 +182,17 @@ function Base.step(env::EnvState, action::Vector{Float32})
 end
 
 function AutoViz.render(env::EnvState)
-    cam = FitToContentCamera(0.01)
+    # cam = FitToContentCamera(0.01)
+    cam = CarFollowCamera(EGO_ID, 20.0)
+    ego = get_by_id(env.ego, EGO_ID)
 
     jerk_text = @sprintf("Jerk:  %2.2f m/s^3", env.action[1])
     δrate_text = @sprintf("δ rate:  %2.2f rad/s", env.action[2])
-    action_overlay = TextOverlay(text=[jerk_text, δrate_text], font_size=18)
+    acc_text = @sprintf("acc:  %2.2f rad/s", ego.state.a)
+    δ_text = @sprintf("δ:  %2.2f rad/s", ego.state.δ)
+    v_text = @sprintf("v:  %2.2f rad/s", ego.state.state.v)
+    action_overlay = TextOverlay(text=[jerk_text, δrate_text,
+                        acc_text, δ_text, v_text], font_size=18)
     render(env.scene, env.roadway, [action_overlay], cam=cam, car_colors=env.colours)
 end
 

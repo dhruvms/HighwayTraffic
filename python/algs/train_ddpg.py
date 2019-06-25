@@ -62,12 +62,21 @@ def train_ddpg(args):
         os.makedirs(savedir)
 
     env = gym.make(args.env)
+    env.reset(args)
     state_dim = env.observation_space.shape
     action_dim = env.action_space.shape
     action_lim = env.action_space.high
 
     agent = A2C(state_dim, action_dim, action_lim,
-                update_type=args.update, batch_size=args.batch_size)
+                update_type=args.update, batch_size=args.batch_size,
+                ego_dim=args.ego_dim)
+    ep_start = 1
+    if args.resume_train:
+        if not args.actor_model:
+            print('ERROR: Need trained model folder.')
+            return
+        agent.load_all(args.actor_model)
+        ep_start = int(args.actor_model.split('_')[-1].split('.')[0][2:])
     agent.train()
 
     if args.seed:
@@ -78,7 +87,7 @@ def train_ddpg(args):
 
     avg_reward = 0.0
     logfile = open(savedir + 'log.txt', 'w+')
-    for episode in range(1, args.episodes+1):
+    for episode in range(ep_start, args.episodes+1):
         ep_reward = 0.0
         state = env.reset()
         agent.reset_noise()
@@ -160,13 +169,14 @@ def test_ddpg(args):
         return
 
     env = gym.make(args.env)
-    _ = env.reset()
+    env.reset(args)
     state_dim = env.observation_space.shape
     action_dim = env.action_space.shape
     action_lim = env.action_space.high
 
     agent = A2C(state_dim, action_dim, action_lim,
-                update_type=args.update, batch_size=args.batch_size)
+                update_type=args.update, batch_size=args.batch_size,
+                ego_dim=args.ego_dim)
     agent.load_actor(args.actor_model)
 
     evaluate(agent, env, args, None, render_episode=True, log=False)
@@ -206,6 +216,36 @@ def parse_args():
 
     parser.add_argument('--debug', action='store_true',
         help='Print debug info')
+    parser.add_argument('--resume-train', action='store_true',
+            help='Print debug info')
+
+    # HighwayTraffic simulation related parameters
+    parser.add_argument('--length', default=100.0, type=float,
+        help='Roadway length')
+    parser.add_argument('--lanes', default=2, type=int,
+        help='Number of lanes on roadway')
+    parser.add_argument('--cars', default=5, type=int,
+        help='Number of cars on roadway')
+    parser.add_argument('--v-des', default=15.0, type=float,
+        help='Max desired velocity')
+    parser.add_argument('--dt', default=0.2, type=float,
+        help='Simulation timestep')
+    parser.add_argument('--ego-dim', default=8, type=int,
+        help='Egovehicle feature dimension')
+    parser.add_argument('--other-dim', default=7, type=int,
+        help='Other vehicle feature dimension')
+    parser.add_argument('--v-cost', default=0.001, type=float,
+        help='Desired velocity deviation cost')
+    parser.add_argument('--a-cost', default=0.0003, type=float,
+        help='Acceleration cost')
+    parser.add_argument('--j-cost', default=0.32, type=float,
+        help='Jerk cost')
+    parser.add_argument('--d-cost', default=0.65, type=float,
+        help='Steering rate cost')
+    parser.add_argument('--phi-cost', default=0.016, type=float,
+        help='Lane heading deviation cost')
+    parser.add_argument('--t-cost', default=0.006, type=float,
+        help='Lane lateral displacement cost')
 
     args = parser.parse_args()
     return args
@@ -213,5 +253,5 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    # train_ddpg(args)
-    test_ddpg(args)
+    train_ddpg(args)
+    # test_ddpg(args)

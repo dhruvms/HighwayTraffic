@@ -6,6 +6,8 @@ mutable struct EnvParams
     cars::Int # number of cars on roadway, including egovehicle
     v_des::Float64 # desired velocity
     dt::Float64 # timestep
+    ego_dim::Int # egovehicle feature dimension
+    other_dim::Int # other vehicle feature dimension
     o_dim::Int # observation space dimension
 
     v_cost::Float64
@@ -14,9 +16,6 @@ mutable struct EnvParams
     δdot_cost::Float64
     ϕ_cost::Float64
     t_cost::Float64
-
-    random::Bool
-    stadium::Bool
 end
 
 mutable struct EnvState

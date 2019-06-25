@@ -12,6 +12,7 @@ class JuliaEnv(gym.Env):
                  # initialization
                  param_dict,
                  ):
+        print("[PyINFO] Starting Julia REPL and include environment file.")
         # Load in functions
         self.j = julia.Julia()
         self.j.eval("include(\"" + JULIA_ENV_DICT[env_name] + "\")")
@@ -23,11 +24,16 @@ class JuliaEnv(gym.Env):
         self._observation_space = None
         self.j_envs = []
 
-        self.param_dict = param_dict
-        _ = self.reset()
+        if type(param_dict) is dict:
+            self.param_dict = param_dict
+        else:
+            self.param_dict = vars(param_dict)
+        # _ = self.reset()
 
-    def reset(self, render=False):
+    def reset(self, args_dict=None, render=False):
         del self.j_envs[:]
+        if args_dict is not None:
+            self.param_dict = vars(args_dict)
 
         env, obs, params = self.j.reset(self.param_dict)
         self.j_envs.append(env)

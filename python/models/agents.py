@@ -13,19 +13,20 @@ from utils import *
 class A2C():
     def __init__(self, state_dim, action_dim, action_lim, update_type='soft',
                 lr_actor=1e-4, lr_critic=1e-3, tau=1e-3,
-                mem_size=1e6, batch_size=64, gamma=0.99):
+                mem_size=1e6, batch_size=64, gamma=0.99,
+                ego_dim=None):
         self.device = torch.device("cuda:0" if torch.cuda.is_available()
                                         else "cpu")
 
-        self.actor = Actor(state_dim, action_dim, action_lim)
+        self.actor = Actor(state_dim, action_dim, action_lim, ego_dim)
         self.actor_optim = optim.Adam(self.actor.parameters(), lr=lr_actor)
-        self.target_actor = Actor(state_dim, action_dim, action_lim)
+        self.target_actor = Actor(state_dim, action_dim, action_lim, ego_dim)
         self.target_actor.load_state_dict(self.actor.state_dict())
         self.target_actor.eval()
 
-        self.critic = Critic(state_dim, action_dim)
+        self.critic = Critic(state_dim, action_dim, ego_dim)
         self.critic_optim = optim.Adam(self.critic.parameters(), lr=lr_critic, weight_decay=1e-2)
-        self.target_critic = Critic(state_dim, action_dim)
+        self.target_critic = Critic(state_dim, action_dim, ego_dim)
         self.target_critic.load_state_dict(self.critic.state_dict())
         self.target_critic.eval()
 
@@ -101,6 +102,17 @@ class A2C():
         self.actor.load_state_dict(torch.load(filename('actor'),
                                                     map_location=self.device))
         self.target_actor.load_state_dict(torch.load(filename('target_actor'),
+                                                    map_location=self.device))
+
+    def load_all(self, actor_filepath):
+        self.load_actor(actor_filepath)
+        qualifier = '_' + actor_filepath.split("_")[-1]
+        folder = actor_filepath[:actor_filepath.rfind("/")+1]
+        filename = lambda type : folder + '%s' % type + qualifier
+
+        self.critic.load_state_dict(torch.load(filename('critic'),
+                                                    map_location=self.device))
+        self.target_critic.load_state_dict(torch.load(filename('target_critic'),
                                                     map_location=self.device))
 
     def update(self, target_noise=True):

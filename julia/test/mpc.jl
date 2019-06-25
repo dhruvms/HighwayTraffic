@@ -50,7 +50,7 @@ for i in 1:(num_vehs/lanes)
         else
             models[v_num] = LatLonSeparableDriver( # produces LatLonAccels
                     ProportionalLaneTracker(), # lateral model
-                    IntelligentDriverModel(), # longitudinal model
+                    IntelligentDriverModel(ΔT = timestep), # longitudinal model
                     )
             carcolors[v_num] = MONOKAI["color5"]
         end

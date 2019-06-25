@@ -33,10 +33,12 @@ end
 function dict_to_params(params::Dict)
     length = get(params, "length", 100.0)
     lanes = get(params, "lanes", 2)
-    cars = get(params, "cars", 5)
-    v_des = get(params, "v_des", 10.0)
+    cars = get(params, "cars", 30)
+    v_des = get(params, "v_des", 15.0)
     dt = get(params, "dt", 0.2)
-    o_dim = get(params, "o_dim", 15)
+    ego_dim = get(params, "ego_dim", 8)
+    other_dim = get(params, "other_dim", 7)
+    o_dim = ego_dim + 6 * other_dim
 
     v_cost = get(params, "v_cost", 0.001)
     a_cost = get(params, "a_cost", 0.0003)
@@ -45,25 +47,18 @@ function dict_to_params(params::Dict)
     ϕ_cost = get(params, "phi_cost", 0.016)
     t_cost = get(params, "t_cost", 0.006)
 
-    random = get(params, "random_others", true)
-    stadium = get(params, "stadium", false)
-
     if cars == 1
-        o_dim = 9
+        ego_dim = 9
     end
 
-    EnvParams(length, lanes, cars, v_des, dt, o_dim,
-                v_cost, a_cost, j_cost, δdot_cost, ϕ_cost, t_cost,
-                random, stadium)
+    EnvParams(length, lanes, cars, v_des, dt, ego_dim, other_dim, o_dim,
+                v_cost, a_cost, j_cost, δdot_cost, ϕ_cost, t_cost)
 end
 
 function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
-    v0 = rand() * params.v_des
-    # s0 = rand() * ((params.length / 2.0) / max(1, params.cars-1))
-    s0 = 0.0
-    lane0 = LaneTag(rand(1:(4*params.stadium + 1*!params.stadium)), rand(1:params.lanes))
-    # t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
-    # ϕ0 = (2 * rand() - 1) * 0.6 # max steering angle
+    v0 = 0.0
+    s0 = 0.1
+    lane0 = LaneTag(6, rand(1:params.lanes))
     t0 = 0.0
     ϕ0 = 0.0
     ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0), EgoVehicle(), EGO_ID)
@@ -75,33 +70,32 @@ function populate_others(params::EnvParams, roadway::Roadway{Float64})
     carcolours = Dict{Int, Colorant}()
     models = Dict{Int, DriverModel}()
 
+    room = (params.length) / max(1, params.cars-1)
     v_num = EGO_ID + 1
-    room = (params.length / 2.0) / max(1, params.cars-1)
-    for i in 1:params.cars-1
+    for i in 1:(params.cars-1)
+        seg = (i % 2) * 3 + (1 - i % 2) * 6
         type = rand()
-        if !params.random
-            type = 0.0
-        end
 
         v0 = rand() * params.v_des
         s0 = i * room
-        lane0 = LaneTag(rand(1:(4*params.stadium + 1*!params.stadium)), rand(1:params.lanes))
+        lane0 = LaneTag(seg, rand(1:params.lanes))
         t0 = 0.0
         ϕ0 = 0.0
         posF = Frenet(roadway[lane0], s0, t0, ϕ0)
 
         push!(scene, Vehicle(VehicleState(posF, roadway, 0.0), VehicleDef(), v_num))
-        if type <= 0.15
+        if type <= 0.2
             models[v_num] = MPCDriver(params.dt)
             v0 = 0.0
             carcolours[v_num] = MONOKAI["color3"]
-        elseif type > 0.05 && type <= 0.5
-            models[v_num] = Tim2DDriver(params.dt)
+        elseif type > 0.2 && type <= 0.6
+            models[v_num] = Tim2DDriver(params.dt,
+                                        mlon=IntelligentDriverModel(ΔT=params.dt))
             carcolours[v_num] = MONOKAI["color4"]
         else
             models[v_num] = LatLonSeparableDriver( # produces LatLonAccels
                     ProportionalLaneTracker(), # lateral model
-                    IntelligentDriverModel(), # longitudinal model
+                    IntelligentDriverModel(ΔT=params.dt), # longitudinal model
                     )
             carcolours[v_num] = MONOKAI["color5"]
         end
@@ -112,7 +106,18 @@ function populate_others(params::EnvParams, roadway::Roadway{Float64})
     (scene, models, carcolours)
 end
 
-function get_neighbour_features(env::EnvState)
+function get_neighbours(env::EnvState, ego_idx::Int)
+    fore_M = get_neighbor_fore_along_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointFront(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=env.params.length)
+    fore_L = get_neighbor_fore_along_left_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointRear(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=env.params.length)
+    fore_R = get_neighbor_fore_along_right_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointRear(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=env.params.length)
+    rear_M = get_neighbor_rear_along_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointFront(), VehicleTargetPointFront(), VehicleTargetPointRear(), max_distance_rear=env.params.length)
+    rear_L = get_neighbor_rear_along_left_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointFront(), VehicleTargetPointFront(), VehicleTargetPointRear(), max_distance_rear=env.params.length)
+    rear_R = get_neighbor_rear_along_right_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointFront(), VehicleTargetPointFront(), VehicleTargetPointRear(), max_distance_rear=env.params.length)
+
+    (fore_M, fore_L, fore_R, rear_M, rear_L, rear_R)
+end
+
+function get_neighbour_dists(env::EnvState)
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego_idx = findfirst(EGO_ID, env.scene)
     ego = env.scene[findfirst(EGO_ID, env.scene)]
@@ -121,12 +126,7 @@ function get_neighbour_features(env::EnvState)
 
     left_lane_exists = road_proj.tag.lane < env.params.lanes
     right_lane_exists = road_proj.tag.lane > 1
-    fore_M = get_neighbor_fore_along_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointFront(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=env.params.length)
-    fore_L = get_neighbor_fore_along_left_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointRear(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=env.params.length)
-    fore_R = get_neighbor_fore_along_right_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointRear(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=env.params.length)
-    rear_M = get_neighbor_rear_along_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointFront(), VehicleTargetPointFront(), VehicleTargetPointRear(), max_distance_rear=env.params.length)
-    rear_L = get_neighbor_rear_along_left_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointFront(), VehicleTargetPointFront(), VehicleTargetPointRear(), max_distance_rear=env.params.length)
-    rear_R = get_neighbor_rear_along_right_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointFront(), VehicleTargetPointFront(), VehicleTargetPointRear(), max_distance_rear=env.params.length)
+    fore_M, fore_L, fore_R, rear_M, rear_L, rear_R = get_neighbours(env, ego_idx)
 
     features = [fore_M.Δs, fore_L.Δs, fore_R.Δs,
                 rear_M.Δs, rear_L.Δs, rear_R.Δs]
@@ -137,6 +137,45 @@ function get_neighbour_features(env::EnvState)
     if !right_lane_exists
         features[[3, 6]] .= 0.0
     end
+    features
+end
+
+function get_featurevec(env::EnvState, neighbour::NeighborLongitudinalResult,
+                            ego_proj::RoadProjection{Int64,Float64};
+                            lane::Int=0, rear::Bool=false)
+    if isnothing(neighbour.ind)
+        return zeros(env.params.other_dim)
+    else
+        Δs = (neighbour.Δs * (rear * -1 + !rear * 1)) / env.params.length
+        v = env.scene[neighbour.ind].state.v
+        lane_id = zeros(3)
+        lane_id[lane] = 1
+        neighbour_proj = Frenet(env.scene[neighbour.ind].state.posG, env.roadway[ego_proj.tag], env.roadway)
+        Δt = neighbour_proj.t
+        Δϕ = neighbour_proj.ϕ
+
+        vec = vcat([Δs, v], lane_id, [Δt, Δϕ])
+        return vec
+    end
+end
+
+function get_neighbour_featurevecs(env::EnvState)
+    ego_idx = findfirst(EGO_ID, env.scene)
+    ego = env.scene[findfirst(EGO_ID, env.scene)]
+
+    road_proj = proj(ego.state.posG, env.roadway)
+
+    fore_M, fore_L, fore_R, rear_M, rear_L, rear_R = get_neighbours(env, ego_idx)
+
+    # lane = 1 (left), 2 (middle), or 3 (right)
+    fore_M = get_featurevec(env, fore_M, road_proj, lane=2)
+    fore_L = get_featurevec(env, fore_L, road_proj, lane=1)
+    fore_R = get_featurevec(env, fore_R, road_proj, lane=3)
+    rear_M = get_featurevec(env, rear_M, road_proj, lane=2, rear=true)
+    rear_L = get_featurevec(env, rear_L, road_proj, lane=1, rear=true)
+    rear_R = get_featurevec(env, rear_R, road_proj, lane=3, rear=true)
+
+    features = vcat(fore_M, fore_L, fore_R, rear_M, rear_L, rear_R)
     features
 end
 
