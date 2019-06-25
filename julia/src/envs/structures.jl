@@ -10,10 +10,10 @@ mutable struct EnvParams
     other_dim::Int # other vehicle feature dimension
     o_dim::Int # observation space dimension
 
-    v_cost::Float64
-    a_cost::Float64
     j_cost::Float64
     δdot_cost::Float64
+    a_cost::Float64
+    v_cost::Float64
     ϕ_cost::Float64
     t_cost::Float64
 end
