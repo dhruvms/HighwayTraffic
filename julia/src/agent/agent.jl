@@ -113,8 +113,12 @@ function AutomotiveDrivingModels.propagate(veh::Entity{AgentState,EgoVehicle,Int
     v = agt.state.v
 
     s = v*dt + a*dt*dt/2 # distance covered
-    s = max(0, s) # no back up
     v_ = v + a*dt
+    done = false
+    if s < 0 || v_ < 0
+        done = true
+    end
+    s = max(0, s) # no back up
     v_ = max(0, v_) # no back up
 
     if δ ≈ 0.0 # just drive straight
@@ -133,5 +137,5 @@ function AutomotiveDrivingModels.propagate(veh::Entity{AgentState,EgoVehicle,Int
         posG = VecSE2(x_, y_, θ_)
     end
 
-    return Entity(AgentState(VehicleState(posG, roadway, v_), a, δ), veh.def, veh.id)
+    return Entity(AgentState(VehicleState(posG, roadway, v_), a, δ), veh.def, veh.id), done
 end

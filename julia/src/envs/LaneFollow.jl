@@ -35,7 +35,7 @@ function observe(env::EnvState)
     ego = get_by_id(env.ego, EGO_ID)
 
     lane = get_lane(env.roadway, ego.state.state)
-    in_lane = lane.tag == env.init_lane ? 1 : 0
+    in_lane = lane.tag.lane == env.init_lane.lane ? 1 : 0
 
     ego_proj = Frenet(ego.state.state.posG, env.roadway[env.init_lane], env.roadway)
     t = ego_proj.t # displacement from lane
@@ -119,11 +119,12 @@ end
 
 function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float32},
                                         actions::Vector{Any})
+    done = false
     for i in 1:length(env.scene)
         veh = env.scene[i]
         if veh.id == EGO_ID
             ego = get_by_id(env.ego, EGO_ID)
-            state′ = propagate(ego, action, env.roadway, env.params.dt)
+            state′, done = propagate(ego, action, env.roadway, env.params.dt)
             env.scene[i] = Vehicle(state′)
             env.ego = Frame([state′])
         else
@@ -133,7 +134,7 @@ function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float32},
     end
 
     env.action = action
-    env
+    (env, done)
 end
 
 function AutomotiveDrivingModels.get_actions!(
@@ -161,17 +162,18 @@ function Base.step(env::EnvState, action::Vector{Float32})
     other_actions = Array{Any}(undef, length(env.scene) - 1)
     get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
 
-    tick!(env, action, other_actions) # move to next state
+    env, done = tick!(env, action, other_actions) # move to next state
     r = reward(env, action)
     o, in_lane = observe(env)
     terminal = is_terminal(env)
+    terminal = terminal || done
 
     if Bool(terminal)
-        r -= 10.0
-    else
-        if Bool(in_lane)
-            r += 1.0
-        end
+        r -= 100.0
+    # else
+    #     if Bool(in_lane)
+    #         r += 1.0
+    #     end
     end
 
     ego = env.scene[findfirst(EGO_ID, env.scene)]
@@ -188,9 +190,9 @@ function AutoViz.render(env::EnvState)
 
     jerk_text = @sprintf("Jerk:  %2.2f m/s^3", env.action[1])
     δrate_text = @sprintf("δ rate:  %2.2f rad/s", env.action[2])
-    acc_text = @sprintf("acc:  %2.2f rad/s", ego.state.a)
-    δ_text = @sprintf("δ:  %2.2f rad/s", ego.state.δ)
-    v_text = @sprintf("v:  %2.2f rad/s", ego.state.state.v)
+    acc_text = @sprintf("acc:  %2.2f m/s^2", ego.state.a)
+    δ_text = @sprintf("δ:  %2.2f rad", ego.state.δ)
+    v_text = @sprintf("v:  %2.2f m/s", ego.state.state.v)
     action_overlay = TextOverlay(text=[jerk_text, δrate_text,
                         acc_text, δ_text, v_text], font_size=18)
     render(env.scene, env.roadway, [action_overlay], cam=cam, car_colors=env.colours)

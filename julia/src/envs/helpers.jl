@@ -40,12 +40,12 @@ function dict_to_params(params::Dict)
     other_dim = get(params, "other_dim", 7)
     o_dim = ego_dim + 6 * other_dim
 
-    j_cost = get(params, "j_cost", 0.32)
-    δdot_cost = get(params, "d_cost", 0.65)
-    a_cost = get(params, "a_cost", 0.0003)
-    v_cost = get(params, "v_cost", 0.001)
-    ϕ_cost = get(params, "phi_cost", 0.016)
-    t_cost = get(params, "t_cost", 0.006)
+    j_cost = get(params, "j_cost", 0.1)
+    δdot_cost = get(params, "d_cost", 0.2)
+    a_cost = get(params, "a_cost", 0.1)
+    v_cost = get(params, "v_cost", 1.0)
+    ϕ_cost = get(params, "phi_cost", 1.0)
+    t_cost = get(params, "t_cost", 2.0)
 
     if cars == 1
         ego_dim = 9
@@ -56,11 +56,11 @@ function dict_to_params(params::Dict)
 end
 
 function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
-    v0 = 0.0
+    v0 = rand() * params.v_des
     s0 = 0.1
     lane0 = LaneTag(6, rand(1:params.lanes))
-    t0 = 0.0
-    ϕ0 = 0.0
+    t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
+    ϕ0 = (2 * rand() - 1) * 0.3 # max steering angle
     ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0), EgoVehicle(), EGO_ID)
     return Frame([ego]), lane0
 end
