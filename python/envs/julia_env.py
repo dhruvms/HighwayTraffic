@@ -23,6 +23,7 @@ class JuliaEnv(gym.Env):
         self._action_space = None
         self._observation_space = None
         self.j_envs = []
+        self.ep_count = 0
 
         if type(param_dict) is dict:
             self.param_dict = param_dict
@@ -34,6 +35,9 @@ class JuliaEnv(gym.Env):
         del self.j_envs[:]
         if args_dict is not None:
             self.param_dict = vars(args_dict)
+
+        if not self.param_dict["eval"]:
+            self.param_dict["cars"] = max(30, ((self.ep_count // 30) + 1) * 3)
 
         env, obs, params = self.j.reset(self.param_dict)
         self.j_envs.append(env)
@@ -59,6 +63,9 @@ class JuliaEnv(gym.Env):
         self.j_env_obj = env
         infos = dict()
         infos['egostate'] = info
+
+        if done:
+            self.ep_count += 1
 
         return obs, reward, done, infos
 

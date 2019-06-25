@@ -14,6 +14,7 @@ import envs # registers the environment
 args = get_args()
 
 args.det = not args.non_det
+args.eval = True
 device = torch.device("cuda:0" if args.cuda else "cpu")
 env = make_vec_envs(
     args,
