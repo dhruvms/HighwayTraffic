@@ -49,7 +49,7 @@ function process!(env::EnvState, msg::Dict{String, T}) where T
             respmsg = Dict("error" => "no known " + msg["cmd"] + " cmd found")
         end
     end
-    respmsg
+    respmsg, env
 end
 
 function run_env_server(ip, port, env::EnvState)
@@ -58,7 +58,7 @@ function run_env_server(ip, port, env::EnvState)
     while true
         msg = JSON.parse(recvreq(conn))
         @info("received request: ", msg)
-        respmsg = process!(env, msg)
+        respmsg, env = process!(env, msg)
         sendresp(conn, respmsg)
     end
     close(conn)

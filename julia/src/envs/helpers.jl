@@ -41,9 +41,9 @@ function dict_to_params(params::Dict)
     o_dim = ego_dim + 6 * other_dim
     max_ticks = get(params, "max_steps", 7)
 
-    j_cost = get(params, "j_cost", 0.1)
-    δdot_cost = get(params, "d_cost", 0.2)
-    a_cost = get(params, "a_cost", 0.1)
+    j_cost = get(params, "j_cost", 0.01)
+    δdot_cost = get(params, "d_cost", 0.02)
+    a_cost = get(params, "a_cost", 0.01)
     v_cost = get(params, "v_cost", 1.0)
     ϕ_cost = get(params, "phi_cost", 1.0)
     t_cost = get(params, "t_cost", 2.0)

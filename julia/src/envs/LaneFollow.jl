@@ -148,7 +148,6 @@ function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float32},
     end
 
     env.action_state = vcat(env.action_state, append!(action, [a, δ]))
-    update!(env.rec, env.scene)
     (env, done)
 end
 
@@ -178,6 +177,7 @@ function step!(env::EnvState, action::Vector{Float32})
     get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
 
     env, done = tick!(env, action, other_actions) # move to next state
+    update!(env.rec, env.scene)
     r = reward(env, action)
     o, in_lane = observe(env)
     terminal = is_terminal(env)
@@ -210,12 +210,13 @@ function save_gif(env::EnvState, filename::String="default.gif")
         scene = env.rec[frame_index-ticks]
         ego = scene[findfirst(EGO_ID, scene)]
 
-        action_state = reshape(env.action_state, 4, :)'[frame_index, :]
+        action_state = reshape(env.action_state, 4, :)'
+        action_state = action_state[frame_index, :]
         jerk_text = @sprintf("Jerk:  %2.2f m/s^3", action_state[1])
         δrate_text = @sprintf("δ rate:  %2.2f rad/s", action_state[2])
         acc_text = @sprintf("acc:  %2.2f m/s^2", action_state[3])
         δ_text = @sprintf("δ:  %2.2f rad", action_state[4])
-        v_text = @sprintf("v:  %2.2f m/s", ego.state.state.v)
+        v_text = @sprintf("v:  %2.2f m/s", ego.state.v)
         action_overlay = TextOverlay(text=[jerk_text, δrate_text,
                             acc_text, δ_text, v_text], font_size=18)
 

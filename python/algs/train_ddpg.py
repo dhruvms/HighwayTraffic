@@ -1,5 +1,5 @@
-#!/usr/bin/env python
 import os
+#!/usr/bin/env python
 import sys
 sys.path.append(os.path.abspath('..'))
 
@@ -22,7 +22,7 @@ def evaluate(agent, env, args, logfile, render_episode=False, log=True):
         ep_reward = 0.0
         for t in range(1, args.max_steps+1):
 
-            action = agent.select_action(state)
+            action = agent.select_action(np.array(state))
             action = np.clip(action, env.action_space.low, env.action_space.high)
 
             next_state, reward, terminal, debug = env.step(action)
@@ -42,13 +42,16 @@ def evaluate(agent, env, args, logfile, render_episode=False, log=True):
         eval_reward += ep_reward
 
         if render_episode:
-            model = args.actor_model.split("_")[-1]
-            model = model.split(".")[0]
-            gifdir = args.actor_model[:args.actor_model.rfind("/")+1] + 'gifs_%s/' % model
-            if not os.path.exists(gifdir):
-                os.makedirs(gifdir)
-            filename = gifdir + 'test_%d.gif' % (episode)
-            env.render(filename=filename)
+            try:
+                model = args.actor_model.split("_")[-1]
+                model = model.split(".")[0]
+                gifdir = args.actor_model[:args.actor_model.rfind("/")+1] + 'gifs_%s/' % model
+                if not os.path.exists(gifdir):
+                    os.makedirs(gifdir)
+                filename = gifdir + 'test_%d.gif' % (episode)
+            except:
+                filename = 'test_%d.gif' % (episode)
+            env.render(filename=os.path.abspath(filename))
 
     if log:
         avg_reward = eval_reward / args.eval_episodes
@@ -92,7 +95,7 @@ def train_ddpg(args):
         state = env.reset()
         agent.reset_noise()
         for t in range(1, args.max_steps+1):
-            action = agent.select_action(state)
+            action = agent.select_action(np.array(state))
             action = np.clip(action, env.action_space.low, env.action_space.high)
 
             next_state, reward, terminal, debug = env.step(action)
@@ -236,17 +239,17 @@ def parse_args():
         help='Egovehicle feature dimension')
     parser.add_argument('--other-dim', default=7, type=int,
         help='Other vehicle feature dimension')
-    parser.add_argument('--v-cost', default=0.001, type=float,
-        help='Desired velocity deviation cost')
-    parser.add_argument('--a-cost', default=0.0003, type=float,
-        help='Acceleration cost')
-    parser.add_argument('--j-cost', default=0.32, type=float,
+    parser.add_argument('--j-cost', default=0.01, type=float,
         help='Jerk cost')
-    parser.add_argument('--d-cost', default=0.65, type=float,
+    parser.add_argument('--d-cost', default=0.02, type=float,
         help='Steering rate cost')
-    parser.add_argument('--phi-cost', default=0.016, type=float,
+    parser.add_argument('--a-cost', default=0.01, type=float,
+        help='Acceleration cost')
+    parser.add_argument('--v-cost', default=1.0, type=float,
+        help='Desired velocity deviation cost')
+    parser.add_argument('--phi-cost', default=1.0, type=float,
         help='Lane heading deviation cost')
-    parser.add_argument('--t-cost', default=0.006, type=float,
+    parser.add_argument('--t-cost', default=2.0, type=float,
         help='Lane lateral displacement cost')
 
     args = parser.parse_args()
@@ -255,5 +258,5 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    # train_ddpg(args)
-    test_ddpg(args)
+    train_ddpg(args)
+    # test_ddpg(args)
