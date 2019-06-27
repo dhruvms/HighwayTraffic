@@ -6,12 +6,15 @@ sys.path.append(os.path.abspath('..'))
 # wrapper for a POMDPs.jl environment in python using ZMQ for python/julia interop
 # example from https://github.com/JuliaPOMDP/RLInterface.jl/issues/2
 
+import subprocess
 import zmq
 import numpy as np
 import gym
 from gym.spaces import Box
 
 from config import JULIA_ENV_DICT
+
+FNULL = open(os.devnull, 'w')
 
 class ZMQConnection:
     """
@@ -52,6 +55,10 @@ class ZMQEnv(gym.Env):
             self.params = param_dict
         else:
             self.params = vars(param_dict)
+
+        self.julia = subprocess.Popen(["julia", "../../julia/scripts/zmq_server.jl",
+                            "--port", str(port), "--ip", str(ip)],
+                            stdout=FNULL, stderr=subprocess.STDOUT)
 
     def reset(self, args_dict=None, render=False):
         if args_dict is not None:
@@ -100,6 +107,9 @@ class ZMQEnv(gym.Env):
 
         return data["obs"], data["rew"], data["done"], infos
 
+    def kill(self):
+        self.julia.terminate()
+
     @property
     def action_space(self):
         if self._action_space is None:
@@ -135,3 +145,4 @@ if __name__ == '__main__':
             break
 
     env.close()
+    env.kill()
