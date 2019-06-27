@@ -210,6 +210,8 @@ def parse_args():
                         help='Network eval frequency')
     parser.add_argument('--eval-episodes', type=int, default=10,
                         help='Evaluation episodes')
+    parser.add_argument('--eval', action='store_true', default=False,
+                        help='in eval mode or not')
 
     parser.add_argument('--actor-model', type=str, default='',
                         help='Path to trained actor model')
@@ -224,7 +226,7 @@ def parse_args():
         help='Roadway length')
     parser.add_argument('--lanes', default=2, type=int,
         help='Number of lanes on roadway')
-    parser.add_argument('--cars', default=5, type=int,
+    parser.add_argument('--cars', default=30, type=int,
         help='Number of cars on roadway')
     parser.add_argument('--v-des', default=15.0, type=float,
         help='Max desired velocity')
@@ -253,5 +255,5 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    train_ddpg(args)
-    # test_ddpg(args)
+    # train_ddpg(args)
+    test_ddpg(args)

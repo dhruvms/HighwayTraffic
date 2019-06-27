@@ -39,6 +39,7 @@ function dict_to_params(params::Dict)
     ego_dim = get(params, "ego_dim", 8)
     other_dim = get(params, "other_dim", 7)
     o_dim = ego_dim + 6 * other_dim
+    max_ticks = get(params, "max_steps", 7)
 
     j_cost = get(params, "j_cost", 0.1)
     δdot_cost = get(params, "d_cost", 0.2)
@@ -52,7 +53,7 @@ function dict_to_params(params::Dict)
     end
 
     EnvParams(length, lanes, cars, v_des, dt, ego_dim, other_dim, o_dim,
-                j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost)
+                max_ticks, j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost)
 end
 
 function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})

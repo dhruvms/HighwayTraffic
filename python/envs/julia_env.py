@@ -37,7 +37,7 @@ class JuliaEnv(gym.Env):
             self.param_dict = vars(args_dict)
 
         if not self.param_dict["eval"]:
-            self.param_dict["cars"] = max(30, ((self.ep_count // 30) + 1) * 3)
+            self.param_dict["cars"] = min(30, ((self.ep_count // 30) + 1) * 3)
 
         env, obs, params = self.j.reset(self.param_dict)
         self.j_envs.append(env)

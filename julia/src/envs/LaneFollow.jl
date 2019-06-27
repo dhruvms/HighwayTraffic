@@ -5,8 +5,8 @@ using AutoViz
 using Reel
 using Printf
 
-export reset, step, render, save_gif, dict_to_params
-export action_space, observation_space, EnvParams
+export reset, step!, save_gif
+export action_space, observation_space, EnvState
 
 include("../agent/agent.jl")
 include("./structures.jl")
@@ -25,9 +25,13 @@ function make_env(params::EnvParams)
     push!(scene, Vehicle(veh))
     colours[EGO_ID] = COLOR_CAR_EGO
 
-    action = [0.0f0, 0.0f0]
+    action_state = [0.0f0, 0.0f0, veh.state.a, veh.state.δ]
 
-    EnvState(params, roadway, scene, ego, action, lanetag, models, colours)
+    rec = SceneRecord(params.max_ticks, params.dt)
+    update!(rec, scene)
+
+    EnvState(params, roadway, scene, rec, ego, action_state, lanetag,
+                models, colours)
 end
 
 function observe(env::EnvState)
@@ -44,9 +48,10 @@ function observe(env::EnvState)
     v = ego.state.state.v
     a = ego.state.a
     δ = ego.state.δ
+    action = reshape(env.action_state, 4, :)'[end, 1:2]
 
     # TODO: normalise?
-    ego_o = [in_lane, t, ϕ, v, a, δ, env.action[1], env.action[2]]
+    ego_o = [in_lane, t, ϕ, v, a, δ, action[1], action[2]]
     if env.params.cars - 1 > 0
         other_o = get_neighbour_featurevecs(env)
         o = vcat(ego_o, other_o)
@@ -74,11 +79,13 @@ function Base.reset(paramdict::Dict)
         env = make_env(params)
         burn_in_sim!(env)
     end
+    env.action_state = env.action_state[end-3:end]
 
     o, _ = observe(env)
 
-    (env, o, params)
+    (env, o)
 end
+
 function is_terminal(env::EnvState; init::Bool=false)
     done = false
 
@@ -119,6 +126,9 @@ end
 
 function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float32},
                                         actions::Vector{Any})
+    a = nothing
+    δ = nothing
+
     done = false
     for i in 1:length(env.scene)
         veh = env.scene[i]
@@ -127,13 +137,18 @@ function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float32},
             state′, done = propagate(ego, action, env.roadway, env.params.dt)
             env.scene[i] = Vehicle(state′)
             env.ego = Frame([state′])
+
+            ego = get_by_id(env.ego, EGO_ID)
+            a = ego.state.a
+            δ = ego.state.δ
         else
             state′ = propagate(veh, actions[i], env.roadway, env.params.dt)
             env.scene[i] = Entity(state′, veh.def, veh.id)
         end
     end
 
-    env.action = action
+    env.action_state = vcat(env.action_state, append!(action, [a, δ]))
+    update!(env.rec, env.scene)
     (env, done)
 end
 
@@ -158,7 +173,7 @@ function AutomotiveDrivingModels.get_actions!(
     actions
 end
 
-function Base.step(env::EnvState, action::Vector{Float32})
+function step!(env::EnvState, action::Vector{Float32})
     other_actions = Array{Any}(undef, length(env.scene) - 1)
     get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
 
@@ -183,26 +198,28 @@ function Base.step(env::EnvState, action::Vector{Float32})
     (o, r, terminal, info, copy(env))
 end
 
-function AutoViz.render(env::EnvState)
-    # cam = FitToContentCamera(0.01)
+function save_gif(env::EnvState, filename::String="default.gif")
+    framerate = Int(1.0/env.params.dt)
+    frames = Reel.Frames(MIME("image/png"), fps=framerate)
+
     cam = CarFollowCamera(EGO_ID, 20.0)
     ego = get_by_id(env.ego, EGO_ID)
 
-    jerk_text = @sprintf("Jerk:  %2.2f m/s^3", env.action[1])
-    δrate_text = @sprintf("δ rate:  %2.2f rad/s", env.action[2])
-    acc_text = @sprintf("acc:  %2.2f m/s^2", ego.state.a)
-    δ_text = @sprintf("δ:  %2.2f rad", ego.state.δ)
-    v_text = @sprintf("v:  %2.2f m/s", ego.state.state.v)
-    action_overlay = TextOverlay(text=[jerk_text, δrate_text,
-                        acc_text, δ_text, v_text], font_size=18)
-    render(env.scene, env.roadway, [action_overlay], cam=cam, car_colors=env.colours)
-end
+    ticks = nframes(env.rec)
+    for frame_index in 1:ticks
+        scene = env.rec[frame_index-ticks]
+        ego = scene[findfirst(EGO_ID, scene)]
 
-function save_gif(envs::Vector{EnvState}, filename::String="default.gif")
-    framerate = Int(1.0/envs[1].params.dt)
-    frames = Reel.Frames(MIME("image/png"), fps=framerate)
-    for e in envs
-        push!(frames, render(e))
+        action_state = reshape(env.action_state, 4, :)'[frame_index, :]
+        jerk_text = @sprintf("Jerk:  %2.2f m/s^3", action_state[1])
+        δrate_text = @sprintf("δ rate:  %2.2f rad/s", action_state[2])
+        acc_text = @sprintf("acc:  %2.2f m/s^2", action_state[3])
+        δ_text = @sprintf("δ:  %2.2f rad", action_state[4])
+        v_text = @sprintf("v:  %2.2f m/s", ego.state.state.v)
+        action_overlay = TextOverlay(text=[jerk_text, δrate_text,
+                            acc_text, δ_text, v_text], font_size=18)
+
+        push!(frames, render(scene, env.roadway, [action_overlay], cam=cam, car_colors=env.colours))
     end
     Reel.write(filename, frames)
 end

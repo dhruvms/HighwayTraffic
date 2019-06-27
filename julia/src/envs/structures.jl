@@ -9,6 +9,7 @@ mutable struct EnvParams
     ego_dim::Int # egovehicle feature dimension
     other_dim::Int # other vehicle feature dimension
     o_dim::Int # observation space dimension
+    max_ticks::Int
 
     j_cost::Float64
     δdot_cost::Float64
@@ -22,16 +23,24 @@ mutable struct EnvState
     params::EnvParams
     roadway::Roadway{Float64}
     scene::Scene
+    rec::SceneRecord
 
     ego::Frame{Agent}
-    action::Vector{Float32}
+    # Vector to be reshaped into ?x4 where each row contains commanded action
+    # at that (row #) timestep, the egovehicle acceleration and steering angle
+    action_state::Vector{Float32}
     init_lane::LaneTag
 
     other_cars::Dict{Int, DriverModel}
     colours::Dict{Int, Colorant}
+
+    # EnvState() = new()
 end
-Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene), e.ego,
-                                    e.action, e.init_lane, e.other_cars, e.colours)
+Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene),
+                                    e.rec, e.ego, copy(e.action_state),
+                                    e.init_lane, e.other_cars, e.colours)
+
 
 action_space(params::EnvParams) = ([-4.0, -0.4], [2.0, 0.4])
-observation_space(params::EnvParams) = (fill(-Inf, params.o_dim), fill(Inf, params.o_dim))
+observation_space(params::EnvParams) = (fill(-Inf, params.o_dim),
+                                                        fill(Inf, params.o_dim))
