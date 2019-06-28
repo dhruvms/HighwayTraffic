@@ -160,6 +160,8 @@ def main():
             evaluate(actor_critic, ob_rms, args.env_name, args.seed,
                      args.num_processes, eval_log_dir, device)
 
+    envs.close()
+
 
 if __name__ == "__main__":
     main()

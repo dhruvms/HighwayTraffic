@@ -52,7 +52,6 @@ for episode in range(1, args.eval_episodes+1):
             value, action, _, recurrent_hidden_states = actor_critic.act(
                     obs, recurrent_hidden_states, masks, deterministic=args.det)
 
-        print(episode, action)
         next_state, reward, terminal, debug = env.step(action)
         masks.fill_(0.0 if terminal else 1.0)
         ep_reward += reward

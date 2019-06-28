@@ -43,10 +43,7 @@ class ZMQEnv(gym.Env):
                  env_name,  # name of the environment to load
                  # dictionary of parameters Dict{String,Any} passed to the env
                  # initialization
-                 param_dict,
-                 ip='127.0.0.1', port=9393):
-        self._conn = ZMQConnection(ip, port)
-
+                 param_dict):
         self._action_space = None
         self._observation_space = None
         self.ep_count = 0
@@ -56,9 +53,18 @@ class ZMQEnv(gym.Env):
         else:
             self.params = vars(param_dict)
 
+        self.zmq = False
+
+    def setup_zmq(self, ip='127.0.0.1', port=9393):
+        self._conn = ZMQConnection(ip, port)
         self.julia = subprocess.Popen(["julia", "../../julia/scripts/zmq_server.jl",
                             "--port", str(port), "--ip", str(ip)],
                             stdout=FNULL, stderr=subprocess.STDOUT)
+        self.zmq = True
+        self.ip = ip
+        self.port = port
+        print("[PyINFO] Starting Julia subprocess and ZMQ Connection at %s:%d."
+                    % (self.ip, self.port))
 
     def reset(self, args_dict=None, render=False):
         if args_dict is not None:
@@ -67,6 +73,10 @@ class ZMQEnv(gym.Env):
         if not self.params["eval"]:
             self.params["cars"] = min(30, ((self.ep_count // 30) + 1) * 3)
 
+        if not self.zmq:
+            self.setup_zmq(ip=self.params["ip"], port=self.params["port"])
+
+        assert self.zmq
         # reset the environment
         data = self._conn.sendreq({"cmd": "reset", "params": self.params})
         assert "obs" in data
@@ -108,7 +118,13 @@ class ZMQEnv(gym.Env):
         return data["obs"], data["rew"], data["done"], infos
 
     def kill(self):
+        print("[PyINFO] Kill Julia subprocess and close ZMQ Connection at %s:%d."
+                    % (self.ip, self.port))
         self.julia.terminate()
+        self.zmq = False
+
+    def close(self):
+        self.kill()
 
     @property
     def action_space(self):
