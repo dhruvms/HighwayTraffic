@@ -37,6 +37,7 @@ function dict_to_params(params::Dict)
     dt = get(params, "dt", 0.2)
     max_ticks = get(params, "max_steps", 200)
     room = length / cars
+    change = get(params, "change", false)
 
     ego_pos = rand(1:cars)
     v_des = get(params, "v_des", 15.0)
@@ -51,7 +52,7 @@ function dict_to_params(params::Dict)
     ϕ_cost = get(params, "phi_cost", 1.0)
     t_cost = get(params, "t_cost", 2.0)
 
-    EnvParams(length, lanes, cars, dt, max_ticks, room,
+    EnvParams(length, lanes, cars, dt, max_ticks, room, change,
                 ego_pos, v_des, ego_dim, other_dim, o_dim,
                 j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost)
 end

@@ -19,6 +19,11 @@ function make_env(params::EnvParams)
     roadway = gen_stadium_roadway(params.lanes, length=params.length, width=0.0, radius=10.0)
 
     ego, lanetag = get_initial_egostate(params, roadway)
+    if params.change
+        seg = lanetag.segment
+        lane = rand(filter(l->l != lanetag.lane, 1:params.lanes))
+        lanetag = LaneTag(seg, lane)
+    end
     veh = get_by_id(ego, EGO_ID)
 
     scene, models, colours = populate_others(params, roadway)

@@ -5,6 +5,8 @@ stuff "cd ../algs^M"
 stuff "p35ws^M"
 
 stuff "python train_ddpg.py --seed --update-always --update-batches 1 --episodes 15000 -e LaneFollow-v1^M"
+stuff "kill -9 $(pgrep -f 9393)^M"
+stuff "python train_ddpg.py --seed --update-always --update-batches 1 --episodes 15000 -e LaneFollow-v1 --change^M"
 
 screen -t bash
 stuff "p35ws^M"

@@ -7,6 +7,7 @@ mutable struct EnvParams
     dt::Float64 # timestep
     max_ticks::Int # max ticks per episode
     room::Float64 # room between cars
+    change::Bool # room between cars
 
     ego_pos::Int # location of egovehicle, between [1, cars]
     v_des::Float64 # desired velocity

@@ -151,6 +151,8 @@ def get_args():
         help='Number of lanes on roadway')
     parser.add_argument('--cars', default=30, type=int,
         help='Number of cars on roadway')
+    parser.add_argument('--change', action='store_true', default=False,
+        help='change lanes')
     parser.add_argument('--v-des', default=15.0, type=float,
         help='Max desired velocity')
     parser.add_argument('--dt', default=0.2, type=float,

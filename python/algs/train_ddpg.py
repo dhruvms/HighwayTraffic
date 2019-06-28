@@ -60,7 +60,8 @@ def evaluate(agent, env, args, logfile, render_episode=False, log=True):
 
 def train_ddpg(args):
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    savedir = args.logdir + 'julia-sim/' + args.env.lower() + '/' + timestr + '/'
+    change = args.change * "-change" + (not args.change) * "-follow"
+    savedir = args.logdir + 'julia-sim/' + args.env.lower() + change + '/' + timestr + '/'
     if not os.path.exists(savedir):
         os.makedirs(savedir)
 
@@ -231,6 +232,8 @@ def parse_args():
         help='Number of lanes on roadway')
     parser.add_argument('--cars', default=30, type=int,
         help='Number of cars on roadway')
+    parser.add_argument('--change', action='store_true', default=False,
+        help='change lanes')
     parser.add_argument('--v-des', default=15.0, type=float,
         help='Max desired velocity')
     parser.add_argument('--dt', default=0.2, type=float,

@@ -70,9 +70,6 @@ class ZMQEnv(gym.Env):
         if args_dict is not None:
             self.params = vars(args_dict)
 
-        if not self.params["eval"]:
-            self.params["cars"] = min(30, ((self.ep_count // 30) + 1) * 3)
-
         if not self.zmq:
             self.setup_zmq(ip=self.params["ip"], port=self.params["port"])
 
