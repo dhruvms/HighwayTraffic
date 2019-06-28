@@ -245,7 +245,7 @@ def parse_args():
         help='Steering rate cost')
     parser.add_argument('--a-cost', default=0.01, type=float,
         help='Acceleration cost')
-    parser.add_argument('--v-cost', default=1.0, type=float,
+    parser.add_argument('--v-cost', default=0.5, type=float,
         help='Desired velocity deviation cost')
     parser.add_argument('--phi-cost', default=1.0, type=float,
         help='Lane heading deviation cost')

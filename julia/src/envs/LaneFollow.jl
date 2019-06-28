@@ -28,7 +28,6 @@ function make_env(params::EnvParams)
     action_state = [0.0f0, 0.0f0, veh.state.a, veh.state.δ]
 
     rec = SceneRecord(params.max_ticks, params.dt)
-    update!(rec, scene)
 
     EnvState(params, roadway, scene, rec, ego, action_state, lanetag,
                 models, colours)
@@ -41,7 +40,9 @@ function observe(env::EnvState)
     lane = get_lane(env.roadway, ego.state.state)
     in_lane = lane.tag.lane == env.init_lane.lane ? 1 : 0
 
-    ego_proj = Frenet(ego.state.state.posG, env.roadway[env.init_lane], env.roadway)
+    true_lanetag = LaneTag(lane.tag.segment, env.init_lane.lane)
+    ego_proj = Frenet(ego.state.state.posG,
+                        env.roadway[true_lanetag], env.roadway)
     t = ego_proj.t # displacement from lane
     ϕ = ego_proj.ϕ # angle relative to lane
 
@@ -61,11 +62,11 @@ function observe(env::EnvState)
     return ego_o, in_lane
 end
 
-function burn_in_sim!(env::EnvState; steps::Int=10)
-    other_actions = Array{Any}(undef, length(env.scene) - 1)
+function burn_in_sim!(env::EnvState; steps::Int=20)
+    other_actions = Array{Any}(undef, length(env.scene))
     for step in 1:steps
         get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
-        tick!(env, [0.0f0, 0.0f0], other_actions)
+        tick!(env, [0.0f0, 0.0f0], other_actions, init=true)
     end
 
     env
@@ -75,11 +76,12 @@ function Base.reset(paramdict::Dict)
     params = dict_to_params(paramdict)
     env = make_env(params)
     burn_in_sim!(env)
-    while is_terminal(env, init=true)
+    while is_terminal(env)
         env = make_env(params)
         burn_in_sim!(env)
     end
     env.action_state = env.action_state[end-3:end]
+    update!(env.rec, env.scene)
 
     o, _ = observe(env)
 
@@ -103,7 +105,11 @@ end
 function reward(env::EnvState, action::Vector{Float32})
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego = get_by_id(env.ego, EGO_ID)
-    ego_proj = Frenet(ego.state.state.posG, env.roadway[env.init_lane], env.roadway)
+    lane = get_lane(env.roadway, ego.state.state)
+    true_lanetag = LaneTag(lane.tag.segment, env.init_lane.lane)
+
+    ego_proj = Frenet(ego.state.state.posG,
+                        env.roadway[true_lanetag], env.roadway)
 
     reward = 1.0
     # action cost
@@ -116,34 +122,30 @@ function reward(env::EnvState, action::Vector{Float32})
     reward -= env.params.ϕ_cost * abs(ego_proj.ϕ)
     reward -= env.params.t_cost * abs(ego_proj.t)
 
-    # if env.params.cars - 1 > 0
-    #     other_o = get_neighbour_features(env)
-    #     reward += sum(abs.(other_o[(abs.(other_o) .!= 0.0) .& (abs.(other_o) .!= 1.0)]))
-    # end
-
     reward
 end
 
 function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float32},
-                                        actions::Vector{Any})
-    a = nothing
-    δ = nothing
+                                        actions::Vector{Any}; init::Bool=false)
+    ego = get_by_id(env.ego, EGO_ID)
+    a = ego.state.a
+    δ = ego.state.δ
 
     done = false
-    for i in 1:length(env.scene)
-        veh = env.scene[i]
+    for (i, veh) in enumerate(env.scene)
         if veh.id == EGO_ID
-            ego = get_by_id(env.ego, EGO_ID)
-            state′, done = propagate(ego, action, env.roadway, env.params.dt)
-            env.scene[i] = Vehicle(state′)
-            env.ego = Frame([state′])
+            if !init
+                state′, done = propagate(ego, action, env.roadway, env.params.dt)
+                env.scene[findfirst(EGO_ID, env.scene)] = Vehicle(state′)
+                env.ego = Frame([state′])
 
-            ego = get_by_id(env.ego, EGO_ID)
-            a = ego.state.a
-            δ = ego.state.δ
+                ego = get_by_id(env.ego, EGO_ID)
+                a = ego.state.a
+                δ = ego.state.δ
+            end
         else
             state′ = propagate(veh, actions[i], env.roadway, env.params.dt)
-            env.scene[i] = Entity(state′, veh.def, veh.id)
+            env.scene[findfirst(veh.id, env.scene)] = Entity(state′, veh.def, veh.id)
         end
     end
 
@@ -161,6 +163,7 @@ function AutomotiveDrivingModels.get_actions!(
 
     for (i, veh) in enumerate(scene)
         if veh.id == EGO_ID
+            actions[i] = LatLonAccel(0, 0)
             continue
         end
 
@@ -173,7 +176,7 @@ function AutomotiveDrivingModels.get_actions!(
 end
 
 function step!(env::EnvState, action::Vector{Float32})
-    other_actions = Array{Any}(undef, length(env.scene) - 1)
+    other_actions = Array{Any}(undef, length(env.scene))
     get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
 
     env, done = tick!(env, action, other_actions) # move to next state
@@ -185,7 +188,6 @@ function step!(env::EnvState, action::Vector{Float32})
 
     if Bool(terminal)
         r -= 100.0
-    # else
     #     if Bool(in_lane)
     #         r += 1.0
     #     end

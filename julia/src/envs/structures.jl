@@ -4,12 +4,15 @@ mutable struct EnvParams
     length::Float64 # length of roadway
     lanes::Int # number of lanes in roadway
     cars::Int # number of cars on roadway, including egovehicle
-    v_des::Float64 # desired velocity
     dt::Float64 # timestep
+    max_ticks::Int # max ticks per episode
+    room::Float64 # room between cars
+
+    ego_pos::Int # location of egovehicle, between [1, cars]
+    v_des::Float64 # desired velocity
     ego_dim::Int # egovehicle feature dimension
     other_dim::Int # other vehicle feature dimension
     o_dim::Int # observation space dimension
-    max_ticks::Int
 
     j_cost::Float64
     δdot_cost::Float64
