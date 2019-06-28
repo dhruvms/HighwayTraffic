@@ -252,6 +252,11 @@ def parse_args():
     parser.add_argument('--t-cost', default=2.0, type=float,
         help='Lane lateral displacement cost')
 
+    parser.add_argument('--ip', type=str, default="127.0.0.1",
+            help='ZMQ Server IP address')
+    parser.add_argument('--port', type=int, default=9393,
+            help='ZMQ Server port number')
+
     args = parser.parse_args()
     return args
 
