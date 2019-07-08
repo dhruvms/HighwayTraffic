@@ -31,19 +31,20 @@ function distance_from_end(params::EnvParams, veh::Agent)
 end
 
 function dict_to_params(params::Dict)
-    length = get(params, "length", 100.0)
+    length = get(params, "length", 1000.0)
     lanes = get(params, "lanes", 3)
     cars = get(params, "cars", 30)
     dt = get(params, "dt", 0.2)
-    max_ticks = get(params, "max_steps", 200)
-    room = length / cars
+    max_ticks = get(params, "max_steps", 100)
+    room = CAR_LENGTH * 2.0
+    stadium = get(params, "stadium", false)
     change = get(params, "change", false)
 
     ego_pos = rand(1:cars)
     v_des = get(params, "v_des", 15.0)
     ego_dim = get(params, "ego_dim", 8)
     other_dim = get(params, "other_dim", 7)
-    o_dim = ego_dim + 6 * other_dim
+    o_dim = ego_dim + (6 * other_dim) * (cars > 1)
 
     j_cost = get(params, "j_cost", 0.01)
     δdot_cost = get(params, "d_cost", 0.02)
@@ -52,18 +53,23 @@ function dict_to_params(params::Dict)
     ϕ_cost = get(params, "phi_cost", 1.0)
     t_cost = get(params, "t_cost", 2.0)
 
-    EnvParams(length, lanes, cars, dt, max_ticks, room, change,
+    EnvParams(length, lanes, cars, dt, max_ticks, room, stadium, change,
                 ego_pos, v_des, ego_dim, other_dim, o_dim,
                 j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost)
 end
 
 function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
-    side = (params.ego_pos % 2) * 6 + (1 - params.ego_pos % 2) * 3
-    lane = params.lanes - ((floor((params.ego_pos + 1) / 2) - 1) % params.lanes)
+    if params.stadium
+        segment = (params.ego_pos % 2) * 6 + (1 - params.ego_pos % 2) * 3
+        lane = params.lanes - ((floor((params.ego_pos + 1) / 2) - 1) % params.lanes)
+    else
+        segment = 1
+        lane = params.lanes - (params.ego_pos % params.lanes)
+    end
 
     v0 = rand() * params.v_des
     s0 = params.ego_pos * params.room
-    lane0 = LaneTag(side, lane)
+    lane0 = LaneTag(segment, lane)
     t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
     ϕ0 = (2 * rand() - 1) * 0.3 # max steering angle
     ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0), EgoVehicle(), EGO_ID)
@@ -80,13 +86,19 @@ function populate_others(params::EnvParams, roadway::Roadway{Float64})
         if i == params.ego_pos
             continue
         end
-        side = (i % 2) * 6 + (1 - i % 2) * 3
-        lane = params.lanes - ((floor((i + 1) / 2) - 1) % params.lanes)
+
+        if params.stadium
+            segment = (i % 2) * 6 + (1 - i % 2) * 3
+            lane = params.lanes - ((floor((i + 1) / 2) - 1) % params.lanes)
+        else
+            segment = 1
+            lane = params.lanes - (i % params.lanes)
+        end
         type = rand()
 
         v0 = rand() * params.v_des
         s0 = i * params.room
-        lane0 = LaneTag(side, lane)
+        lane0 = LaneTag(segment, lane)
         t0 = 0.0
         ϕ0 = 0.0
         posF = Frenet(roadway[lane0], s0, t0, ϕ0)

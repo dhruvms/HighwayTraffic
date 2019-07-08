@@ -14,19 +14,19 @@ class A2C():
     def __init__(self, state_dim, action_dim, action_lim, update_type='soft',
                 lr_actor=1e-4, lr_critic=1e-3, tau=1e-3,
                 mem_size=1e6, batch_size=64, gamma=0.99,
-                ego_dim=None):
+                other_cars=False, ego_dim=None):
         self.device = torch.device("cuda:0" if torch.cuda.is_available()
                                         else "cpu")
 
-        self.actor = Actor(state_dim, action_dim, action_lim, ego_dim)
+        self.actor = Actor(state_dim, action_dim, action_lim, other_cars=other_cars, ego_dim=ego_dim)
         self.actor_optim = optim.Adam(self.actor.parameters(), lr=lr_actor)
-        self.target_actor = Actor(state_dim, action_dim, action_lim, ego_dim)
+        self.target_actor = Actor(state_dim, action_dim, action_lim, other_cars=other_cars, ego_dim=ego_dim)
         self.target_actor.load_state_dict(self.actor.state_dict())
         self.target_actor.eval()
 
-        self.critic = Critic(state_dim, action_dim, ego_dim)
+        self.critic = Critic(state_dim, action_dim, other_cars=other_cars, ego_dim=ego_dim)
         self.critic_optim = optim.Adam(self.critic.parameters(), lr=lr_critic, weight_decay=1e-2)
-        self.target_critic = Critic(state_dim, action_dim, ego_dim)
+        self.target_critic = Critic(state_dim, action_dim, other_cars=other_cars, ego_dim=ego_dim)
         self.target_critic.load_state_dict(self.critic.state_dict())
         self.target_critic.eval()
 
@@ -45,8 +45,8 @@ class A2C():
 
         mu = np.zeros(action_dim)
         sigma = 1.0
-        self.noise = OrnsteinUhlenbeckActionNoise(mu, 0.2)
-        self.target_noise = OrnsteinUhlenbeckActionNoise(mu, 0.2)
+        self.noise = OrnsteinUhlenbeckActionNoise(mu, 0.02)
+        self.target_noise = OrnsteinUhlenbeckActionNoise(mu, 0.02)
 
         self.initialised = True
         self.training = False

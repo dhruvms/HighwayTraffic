@@ -16,7 +16,11 @@ include("../behaviours/mpc_driver.jl")
 # TODO: distance_from_end does not make sense for stadium roadways
 
 function make_env(params::EnvParams)
-    roadway = gen_stadium_roadway(params.lanes, length=params.length, width=0.0, radius=10.0)
+    if params.stadium
+        roadway = gen_stadium_roadway(params.lanes, length=params.length, width=0.0, radius=10.0)
+    else
+        roadway = gen_straight_roadway(params.lanes, params.length)
+    end
 
     ego, lanetag = get_initial_egostate(params, roadway)
     if params.change
@@ -81,9 +85,11 @@ function Base.reset(paramdict::Dict)
     params = dict_to_params(paramdict)
     env = make_env(params)
     burn_in_sim!(env)
-    while is_terminal(env)
+    check, _ = is_terminal(env)
+    while check
         env = make_env(params)
         burn_in_sim!(env)
+        check, _ = is_terminal(env)
     end
     env.action_state = env.action_state[end-3:end]
     update!(env.rec, env.scene)
@@ -95,16 +101,26 @@ end
 
 function is_terminal(env::EnvState; init::Bool=false)
     done = false
+    final_r = 0.0
 
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego = get_by_id(env.ego, EGO_ID)
     road_proj = proj(ego.state.state.posG, env.roadway)
 
     done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
+    final_r -= done * 5.0
+
     done = done || (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) # off roadway
     done = done || is_crash(env, init=init)
+    final_r -= done * 10.0
 
-    done
+    if !env.params.stadium
+        dist = distance_from_end(env.params, ego)
+        done = done || (dist <= 0.05) # no more road left
+        final_r += done * 10.0
+    end
+
+    done, final_r
 end
 
 function reward(env::EnvState, action::Vector{Float32})
@@ -126,6 +142,11 @@ function reward(env::EnvState, action::Vector{Float32})
     # lane follow cost
     reward -= env.params.ϕ_cost * abs(ego_proj.ϕ)
     reward -= env.params.t_cost * abs(ego_proj.t)
+
+    if !env.params.stadium
+        dist = distance_from_end(env.params, ego)
+        reward += 1.0 - dist
+    end
 
     reward
 end
@@ -188,14 +209,14 @@ function step!(env::EnvState, action::Vector{Float32})
     update!(env.rec, env.scene)
     r = reward(env, action)
     o, in_lane = observe(env)
-    terminal = is_terminal(env)
+    terminal, final_r = is_terminal(env)
     terminal = terminal || done
 
     if Bool(terminal)
-        r -= 100.0
-    #     if Bool(in_lane)
-    #         r += 1.0
-    #     end
+        r += final_r
+        if Bool(in_lane)
+            r += 1.0
+        end
     end
 
     ego = env.scene[findfirst(EGO_ID, env.scene)]

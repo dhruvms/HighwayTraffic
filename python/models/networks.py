@@ -3,15 +3,15 @@ import torch.nn as nn
 
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim, action_lim,
-                    ego_dim=None):
+                    other_cars=False, ego_dim=None):
         super().__init__()
 
         device = torch.device("cuda:0" if torch.cuda.is_available()
                                         else "cpu")
 
-        self.others = False
-        if ego_dim is not None:
-            self.others = True
+        self.other_cars = other_cars
+        if self.other_cars:
+            assert ego_dim is not None
             self.ego_dim = ego_dim
             self.others_net = nn.Sequential(
                         nn.Linear(state_dim[0]-self.ego_dim, 128),
@@ -20,7 +20,7 @@ class Actor(nn.Module):
                         nn.ReLU()
                         )
             self.net = nn.Sequential(
-                        nn.Linear(ego_dim + 64, 400),
+                        nn.Linear(self.ego_dim + 64, 400),
                         nn.ReLU(),
                         nn.Linear(400, 300),
                         nn.ReLU(),
@@ -37,7 +37,7 @@ class Actor(nn.Module):
         self.action_lim = torch.FloatTensor(action_lim).to(device)
 
     def forward(self, state):
-        if self.others:
+        if self.other_cars:
             other_cars = state[:, self.ego_dim:]
             ego = state[:, :self.ego_dim]
 
@@ -50,12 +50,12 @@ class Actor(nn.Module):
 
 class Critic(nn.Module):
     def __init__(self, state_dim, action_dim,
-                    ego_dim=None):
+                    other_cars=False, ego_dim=None):
         super().__init__()
 
-        self.others = False
-        if ego_dim is not None:
-            self.others = True
+        self.other_cars = other_cars
+        if self.other_cars:
+            assert ego_dim is not None
             self.ego_dim = ego_dim
             self.others_net = nn.Sequential(
                         nn.Linear(state_dim[0]-self.ego_dim, 128),
@@ -80,7 +80,7 @@ class Critic(nn.Module):
                         )
 
     def forward(self, state, action):
-        if self.others:
+        if self.other_cars:
             other_cars = state[:, self.ego_dim:]
             ego = state[:, :self.ego_dim]
 

@@ -1,4 +1,5 @@
 const EGO_ID = 1
+const CAR_LENGTH = 4.0
 
 mutable struct EnvParams
     length::Float64 # length of roadway
@@ -7,7 +8,8 @@ mutable struct EnvParams
     dt::Float64 # timestep
     max_ticks::Int # max ticks per episode
     room::Float64 # room between cars
-    change::Bool # room between cars
+    stadium::Bool # stadium roadway
+    change::Bool # change to different lane
 
     ego_pos::Int # location of egovehicle, between [1, cars]
     v_des::Float64 # desired velocity

@@ -70,10 +70,11 @@ def train_ddpg(args):
     state_dim = env.observation_space.shape
     action_dim = env.action_space.shape
     action_lim = env.action_space.high
+    other_cars = args.cars > 1
 
     agent = A2C(state_dim, action_dim, action_lim,
                 update_type=args.update, batch_size=args.batch_size,
-                ego_dim=args.ego_dim)
+                other_cars=other_cars, ego_dim=args.ego_dim)
     ep_start = 1
     if args.resume_train:
         if not args.actor_model:
@@ -177,10 +178,11 @@ def test_ddpg(args):
     state_dim = env.observation_space.shape
     action_dim = env.action_space.shape
     action_lim = env.action_space.high
+    other_cars = args.cars > 1
 
     agent = A2C(state_dim, action_dim, action_lim,
                 update_type=args.update, batch_size=args.batch_size,
-                ego_dim=args.ego_dim)
+                other_cars=other_cars, ego_dim=args.ego_dim)
     agent.load_actor(args.actor_model)
 
     evaluate(agent, env, args, None, render_episode=True, log=False)
@@ -199,7 +201,7 @@ def parse_args():
                         help='Random seed')
     parser.add_argument('--episodes', type=int, default=1500,
                         help='Training episodes')
-    parser.add_argument('--max-steps', type=int, default=200,
+    parser.add_argument('--max-steps', type=int, default=100,
                         help='Max steps per episode')
     parser.add_argument('--update-always', action='store_true',
                         help='Update network every timestep')
@@ -226,12 +228,14 @@ def parse_args():
             help='Print debug info')
 
     # HighwayTraffic simulation related parameters
-    parser.add_argument('--length', default=100.0, type=float,
+    parser.add_argument('--length', default=1000.0, type=float,
         help='Roadway length')
-    parser.add_argument('--lanes', default=2, type=int,
+    parser.add_argument('--lanes', default=3, type=int,
         help='Number of lanes on roadway')
     parser.add_argument('--cars', default=30, type=int,
         help='Number of cars on roadway')
+    parser.add_argument('--stadium', action='store_true', default=False,
+        help='stadium roadway')
     parser.add_argument('--change', action='store_true', default=False,
         help='change lanes')
     parser.add_argument('--v-des', default=15.0, type=float,
@@ -266,5 +270,5 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    train_ddpg(args)
-    # test_ddpg(args)
+    # train_ddpg(args)
+    test_ddpg(args)
