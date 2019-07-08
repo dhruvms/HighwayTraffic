@@ -58,8 +58,7 @@ class ZMQEnv(gym.Env):
     def setup_zmq(self, ip='127.0.0.1', port=9393):
         self._conn = ZMQConnection(ip, port)
         self.julia = subprocess.Popen(["julia", "../../julia/scripts/zmq_server.jl",
-                            "--port", str(port), "--ip", str(ip)],
-                            stdout=FNULL, stderr=subprocess.STDOUT)
+                            "--port", str(port), "--ip", str(ip)])
         self.zmq = True
         self.ip = ip
         self.port = port

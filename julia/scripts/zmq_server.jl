@@ -54,10 +54,10 @@ end
 
 function run_env_server(ip, port, env::EnvState)
     conn = ZMQTransport(ip, port, ZMQ.REP, true)
-    @info("running server...")
+    # @info("running server...")
     while true
         msg = JSON.parse(recvreq(conn))
-        @info("received request: ", msg)
+        # @info("received request: ", msg)
         respmsg, env = process!(env, msg)
         sendresp(conn, respmsg)
     end

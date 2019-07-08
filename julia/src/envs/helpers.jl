@@ -40,14 +40,6 @@ function dict_to_params(params::Dict)
     stadium = get(params, "stadium", false)
     change = get(params, "change", false)
 
-    if change
-        println("[Jl-INFO] Environment is LaneChange-v1")
-    end
-
-    if stadium
-        println("[Jl-INFO] Using stadium roadway")
-    end
-
     ego_pos = rand(1:cars)
     v_des = get(params, "v_des", 15.0)
     ego_dim = get(params, "ego_dim", 8)
