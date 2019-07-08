@@ -63,7 +63,7 @@ class ZMQEnv(gym.Env):
         self.zmq = True
         self.ip = ip
         self.port = port
-        print("[PyINFO] Starting Julia subprocess and ZMQ Connection at %s:%d."
+        print("[Py-INFO] Starting Julia subprocess and ZMQ Connection at %s:%d."
                     % (self.ip, self.port))
 
     def reset(self, args_dict=None, render=False):
@@ -115,7 +115,7 @@ class ZMQEnv(gym.Env):
         return data["obs"], data["rew"], data["done"], infos
 
     def kill(self):
-        print("[PyINFO] Kill Julia subprocess and close ZMQ Connection at %s:%d."
+        print("[Py-INFO] Kill Julia subprocess and close ZMQ Connection at %s:%d."
                     % (self.ip, self.port))
         self.julia.terminate()
         self.zmq = False

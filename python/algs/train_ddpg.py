@@ -151,7 +151,7 @@ def train_ddpg(args):
         logfile.flush()
 
         if (episode % args.save_every) == 0:
-            agent.save(savedir, episode)
+            agent.save(savedir, episode, previous=episode - args.save_every)
 
         if (episode % args.eval_every) == 0:
             avg_reward /= args.eval_every
@@ -270,5 +270,5 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    # train_ddpg(args)
-    test_ddpg(args)
+    train_ddpg(args)
+    # test_ddpg(args)

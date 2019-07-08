@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
+import os
 import numpy as np
 
 from networks import Actor, Critic
@@ -83,16 +84,22 @@ class A2C():
 
         self.training = False
 
-    def save(self, folder, episode, solved=False):
-        filename = lambda type : folder + '%s' % type + \
-                                    (not solved) * ('_ep%d' % (episode)) + \
+    def save(self, folder, episode, previous=None, solved=False):
+        filename = lambda type, ep : folder + '%s' % type + \
+                                    (not solved) * ('_ep%d' % (ep)) + \
                                     (solved * '_solved') + '.pth'
 
-        torch.save(self.actor.state_dict(), filename('actor'))
-        torch.save(self.target_actor.state_dict(), filename('target_actor'))
+        torch.save(self.actor.state_dict(), filename('actor', episode))
+        torch.save(self.target_actor.state_dict(), filename('target_actor', episode))
 
-        torch.save(self.critic.state_dict(), filename('critic'))
-        torch.save(self.target_critic.state_dict(), filename('target_critic'))
+        torch.save(self.critic.state_dict(), filename('critic', episode))
+        torch.save(self.target_critic.state_dict(), filename('target_critic', episode))
+
+        if previous is not None and previous > 0:
+            os.remove(filename('actor', previous))
+            os.remove(filename('target_actor', previous))
+            os.remove(filename('critic', previous))
+            os.remove(filename('target_critic', previous))
 
     def load_actor(self, actor_filepath):
         qualifier = '_' + actor_filepath.split("_")[-1]
