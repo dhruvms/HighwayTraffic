@@ -13,7 +13,7 @@ class Flatten(nn.Module):
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_shape, action_space, ego_dim=None, base=None, base_kwargs=None):
+    def __init__(self, obs_shape, action_space, other_cars=False, ego_dim=None, base=None, base_kwargs=None):
         super(Policy, self).__init__()
         if base_kwargs is None:
             base_kwargs = {}
@@ -25,7 +25,7 @@ class Policy(nn.Module):
             else:
                 raise NotImplementedError
 
-        self.base = base(obs_shape[0], ego_dim=ego_dim, **base_kwargs)
+        self.base = base(obs_shape[0], other_cars=other_cars, ego_dim=ego_dim, **base_kwargs)
 
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n
@@ -196,7 +196,7 @@ class CNNBase(NNBase):
 
 
 class MLPBase(NNBase):
-    def __init__(self, num_inputs, ego_dim=None, recurrent=False, hidden_size=64):
+    def __init__(self, num_inputs, other_cars=False, ego_dim=None, recurrent=False, hidden_size=64):
         super(MLPBase, self).__init__(recurrent, num_inputs, hidden_size)
 
         if recurrent:
@@ -205,9 +205,9 @@ class MLPBase(NNBase):
         init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
                                constant_(x, 0), np.sqrt(2))
 
-        self.others = False
-        if ego_dim is not None:
-            self.others = True
+        self.other_cars = other_cars
+        if self.other_cars:
+            assert ego_dim is not None
             self.ego_dim = ego_dim
             self.others_dim = num_inputs-self.ego_dim
             self.other_cars = nn.Sequential(
@@ -239,7 +239,7 @@ class MLPBase(NNBase):
 
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
-        if self.others:
+        if self.other_cars:
             other_cars = x[:, self.ego_dim:]
             ego = x[:, :self.ego_dim]
 
