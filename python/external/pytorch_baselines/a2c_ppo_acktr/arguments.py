@@ -103,7 +103,7 @@ def get_args():
         help='number of environment steps to train (default: 10e6)')
     parser.add_argument(
         '--env-name',
-        default='LaneFollow-v0',
+        default='LaneFollow-v1',
         help='environment to train on (default: PongNoFrameskip-v4)')
     parser.add_argument(
         '--log-dir',
@@ -147,34 +147,36 @@ def get_args():
     # HighwayTraffic simulation related parameters
     parser.add_argument('--length', default=100.0, type=float,
         help='Roadway length')
-    parser.add_argument('--lanes', default=2, type=int,
+    parser.add_argument('--lanes', default=3, type=int,
         help='Number of lanes on roadway')
-    parser.add_argument('--cars', default=30, type=int,
+    parser.add_argument('--cars', default=20, type=int,
         help='Number of cars on roadway')
+    parser.add_argument('--stadium', action='store_true', default=False,
+        help='stadium roadway')
     parser.add_argument('--change', action='store_true', default=False,
         help='change lanes')
     parser.add_argument('--v-des', default=15.0, type=float,
         help='Max desired velocity')
     parser.add_argument('--dt', default=0.2, type=float,
         help='Simulation timestep')
-    parser.add_argument('--ego-dim', default=8, type=int,
+    parser.add_argument('--ego-dim', default=6, type=int,
         help='Egovehicle feature dimension')
     parser.add_argument('--other-dim', default=7, type=int,
         help='Other vehicle feature dimension')
-    parser.add_argument('--j-cost', default=0.01, type=float,
+    parser.add_argument('--j-cost', default=0.32, type=float,
         help='Jerk cost')
-    parser.add_argument('--d-cost', default=0.02, type=float,
+    parser.add_argument('--d-cost', default=0.65, type=float,
         help='Steering rate cost')
-    parser.add_argument('--a-cost', default=0.01, type=float,
+    parser.add_argument('--a-cost', default=0.0003, type=float,
         help='Acceleration cost')
-    parser.add_argument('--v-cost', default=0.5, type=float,
+    parser.add_argument('--v-cost', default=0.001, type=float,
         help='Desired velocity deviation cost')
-    parser.add_argument('--phi-cost', default=1.0, type=float,
+    parser.add_argument('--phi-cost', default=0.016, type=float,
         help='Lane heading deviation cost')
-    parser.add_argument('--t-cost', default=2.0, type=float,
+    parser.add_argument('--t-cost', default=0.006, type=float,
         help='Lane lateral displacement cost')
 
-    parser.add_argument('--max-steps', type=int, default=200,
+    parser.add_argument('--max-steps', type=int, default=100,
                         help='Max steps per episode')
     parser.add_argument('--eval-episodes', type=int, default=10,
                         help='Evaluation episodes')

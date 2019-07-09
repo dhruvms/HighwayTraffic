@@ -41,10 +41,11 @@ def main():
     #                      args.gamma, args.log_dir, device, False)
     envs = make_vec_envs(args, device, False)
 
+    other_cars = args.cars > 1
     actor_critic = Policy(
         envs.observation_space.shape,
         envs.action_space,
-        ego_dim=args.ego_dim,
+        other_cars=other_cars, ego_dim=args.ego_dim,
         base_kwargs={'recurrent': args.recurrent_policy})
     actor_critic.to(device)
 

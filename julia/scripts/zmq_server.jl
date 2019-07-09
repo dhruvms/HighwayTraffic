@@ -18,7 +18,6 @@ s = ArgParseSettings()
 end
 parsed_args = parse_args(ARGS, s)
 
-
 port = parsed_args["port"]
 ip = parsed_args["ip"]
 
@@ -54,7 +53,7 @@ end
 
 function run_env_server(ip, port, env::EnvState)
     conn = ZMQTransport(ip, port, ZMQ.REP, true)
-    # @info("running server...")
+    @info("running server: ", ip, port)
     while true
         msg = JSON.parse(recvreq(conn))
         # @info("received request: ", msg)

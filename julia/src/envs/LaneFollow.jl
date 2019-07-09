@@ -63,10 +63,9 @@ function observe(env::EnvState)
     v = ego.state.state.v
     a = ego.state.a
     δ = ego.state.δ
-    action = reshape(env.action_state, 4, :)'[end, 1:2]
 
     # TODO: normalise?
-    ego_o = [in_lane, t, ϕ, v, a, δ, action[1], action[2]]
+    ego_o = [in_lane, t, ϕ, v, a, δ]
     if env.params.cars - 1 > 0
         other_o = get_neighbour_featurevecs(env)
         o = vcat(ego_o, other_o)
@@ -132,8 +131,8 @@ function reward(env::EnvState, action::Vector{Float32})
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego = get_by_id(env.ego, EGO_ID)
     lane = get_lane(env.roadway, ego.state.state)
-    true_lanetag = LaneTag(lane.tag.segment, env.init_lane.lane)
 
+    true_lanetag = LaneTag(lane.tag.segment, env.init_lane.lane)
     ego_proj = Frenet(ego.state.state.posG,
                         env.roadway[true_lanetag], env.roadway)
 
@@ -250,8 +249,9 @@ function save_gif(env::EnvState, filename::String="default.gif")
         acc_text = @sprintf("acc:  %2.2f m/s^2", action_state[3])
         δ_text = @sprintf("δ:  %2.2f rad", action_state[4])
         v_text = @sprintf("v:  %2.2f m/s", ego.state.v)
+        lane_text = @sprintf("Target Lane: LaneTag(%d, %d)", env.init_lane.segment, env.init_lane.lane)
         action_overlay = TextOverlay(text=[jerk_text, δrate_text,
-                            acc_text, δ_text, v_text], font_size=18)
+                            acc_text, δ_text, v_text, lane_text], font_size=14)
 
         push!(frames, render(scene, env.roadway, [action_overlay], cam=cam, car_colors=env.colours))
     end

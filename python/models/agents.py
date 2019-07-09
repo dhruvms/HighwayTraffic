@@ -14,7 +14,7 @@ from utils import *
 class A2C():
     def __init__(self, state_dim, action_dim, action_lim, update_type='soft',
                 lr_actor=1e-4, lr_critic=1e-3, tau=1e-3,
-                mem_size=1e6, batch_size=64, gamma=0.99,
+                mem_size=1e6, batch_size=256, gamma=0.99,
                 other_cars=False, ego_dim=None):
         self.device = torch.device("cuda:0" if torch.cuda.is_available()
                                         else "cpu")
@@ -45,9 +45,9 @@ class A2C():
         self.memory = Memory(int(mem_size), action_dim, state_dim)
 
         mu = np.zeros(action_dim)
-        sigma = 1.0
-        self.noise = OrnsteinUhlenbeckActionNoise(mu, 0.02)
-        self.target_noise = OrnsteinUhlenbeckActionNoise(mu, 0.02)
+        sigma = np.array([0.5, 0.05])
+        self.noise = OrnsteinUhlenbeckActionNoise(mu, sigma)
+        self.target_noise = OrnsteinUhlenbeckActionNoise(mu, sigma)
 
         self.initialised = True
         self.training = False
