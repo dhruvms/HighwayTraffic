@@ -57,6 +57,20 @@ class ZMQEnv(gym.Env):
 
     def setup_zmq(self, ip='127.0.0.1', port=9393):
         self._conn = ZMQConnection(ip, port)
+
+        try:
+            pid = subprocess.check_output(["pgrep", "-f", str(port)]).decode()
+        except subprocess.CalledProcessError as e:
+            print("[Py-INFO] pgrep failed because reasons. ({}):".format(e.returncode) , e.output.decode())
+        else:
+            try:
+                os.kill(int(pid), 9)
+                print("[Py-INFO] Killed existing ZMQ server at %s:%d!" % (ip, port))
+            except ProcessLookupError as e:
+                print("[Py-INFO] Tried to kill an old entry.")
+            except ValueError as e:
+                print("[Py-INFO] No existing ZMQ server at %s:%d. Moving on!" % (ip, port))
+
         self.julia = subprocess.Popen(["julia", "../../julia/scripts/zmq_server.jl",
                             "--port", str(port), "--ip", str(ip)])
         self.zmq = True
