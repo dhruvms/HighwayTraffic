@@ -145,17 +145,18 @@ def main():
                 pass
 
             change = args.change * "-Change" + (not args.change) * "-Follow"
+            cars = "-{}cars".format(args.cars)
             torch.save([
                 actor_critic,
                 getattr(utils.get_vec_normalize(envs), 'ob_rms', None)
-            ], os.path.join(save_path, args.env_name + change + ".pt"))
+            ], os.path.join(save_path, args.env_name + change + cars + ".pt"))
 
             if median_ep_reward > best_median:
                 best_median = median_ep_reward
                 torch.save([
                     actor_critic,
                     getattr(utils.get_vec_normalize(envs), 'ob_rms', None)
-                ], os.path.join(save_path, args.env_name + change + "-best" + ".pt"))
+                ], os.path.join(save_path, args.env_name + change + cars + "-best" + ".pt"))
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             total_num_steps = (j + 1) * args.num_processes * args.num_steps
