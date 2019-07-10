@@ -246,17 +246,17 @@ def parse_args():
         help='Egovehicle feature dimension')
     parser.add_argument('--other-dim', default=7, type=int,
         help='Other vehicle feature dimension')
-    parser.add_argument('--j-cost', default=0.32, type=float,
+    parser.add_argument('--j-cost', default=1.0, type=float,
         help='Jerk cost')
-    parser.add_argument('--d-cost', default=0.65, type=float,
+    parser.add_argument('--d-cost', default=10.0, type=float,
         help='Steering rate cost')
-    parser.add_argument('--a-cost', default=0.0003, type=float,
+    parser.add_argument('--a-cost', default=100.0, type=float,
         help='Acceleration cost')
-    parser.add_argument('--v-cost', default=0.001, type=float,
+    parser.add_argument('--v-cost', default=1000.0, type=float,
         help='Desired velocity deviation cost')
-    parser.add_argument('--phi-cost', default=0.016, type=float,
+    parser.add_argument('--phi-cost', default=500.0, type=float,
         help='Lane heading deviation cost')
-    parser.add_argument('--t-cost', default=0.006, type=float,
+    parser.add_argument('--t-cost', default=10000.0, type=float,
         help='Lane lateral displacement cost')
 
     parser.add_argument('--ip', type=str, default="127.0.0.1",

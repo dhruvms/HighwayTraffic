@@ -24,7 +24,7 @@ env = make_vec_envs(
 # Get a render function
 render_func = get_render_func(env)
 timestr = time.strftime("%Y%m%d-%H%M%S")
-change = args.change * "-Change" + (not args.change) * "-Follow"
+change = args.change * "-Change-best" + (not args.change) * "-Follow-best"
 gifdir = args.load_dir + args.algo + '/gifs/' + args.env_name.lower() + change.lower() + '/' + timestr + '/'
 if not os.path.exists(gifdir):
     os.makedirs(gifdir)
