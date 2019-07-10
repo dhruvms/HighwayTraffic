@@ -147,10 +147,10 @@ function reward(env::EnvState, action::Vector{Float32})
     reward -= env.params.ϕ_cost * abs(ego_proj.ϕ)
     reward -= env.params.t_cost * abs(ego_proj.t)
 
-    if !env.params.stadium
-        dist = distance_from_end(env.params, ego)
-        reward += 1.0 - dist
-    end
+    # if !env.params.stadium
+    #     dist = distance_from_end(env.params, ego)
+    #     reward += 1.0 - dist
+    # end
 
     reward
 end

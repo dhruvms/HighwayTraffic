@@ -86,6 +86,7 @@ def main():
     rollouts.to(device)
 
     episode_rewards = deque(maxlen=10)
+    best_median = 0.0
 
     start = time.time()
     num_updates = int(
@@ -134,6 +135,7 @@ def main():
         rollouts.after_update()
 
         # save for every interval-th episode or for the last epoch
+        median_ep_reward = np.median(episode_rewards)
         if (j % args.save_interval == 0
                 or j == num_updates - 1) and args.save_dir != "":
             save_path = os.path.join(args.save_dir, args.algo)
@@ -147,6 +149,13 @@ def main():
                 actor_critic,
                 getattr(utils.get_vec_normalize(envs), 'ob_rms', None)
             ], os.path.join(save_path, args.env_name + change + ".pt"))
+
+            if median_ep_reward > best_median:
+                best_median = median_ep_reward
+                torch.save([
+                    actor_critic,
+                    getattr(utils.get_vec_normalize(envs), 'ob_rms', None)
+                ], os.path.join(save_path, args.env_name + change + "-best" + ".pt"))
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             total_num_steps = (j + 1) * args.num_processes * args.num_steps

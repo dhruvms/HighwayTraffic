@@ -79,8 +79,9 @@ class ZMQEnv(gym.Env):
         print("[Py-INFO] Starting Julia subprocess and ZMQ Connection at %s:%d."
                     % (self.ip, self.port))
 
-    def reset(self, args_dict=None, render=False):
+    def reset(self, args_dict=None):
         if args_dict is not None:
+            print("[Py-INFO] Reset with dictionary!")
             self.params = vars(args_dict)
 
         if not self.zmq:
@@ -125,6 +126,10 @@ class ZMQEnv(gym.Env):
         if data["done"]:
             self.ep_count += 1
 
+        if data["done"] and self.params["eval"]:
+            filename = "eval_ep.gif"
+            self.render(filename)
+
         return data["obs"], data["rew"], data["done"], infos
 
     def kill(self):
@@ -139,14 +144,14 @@ class ZMQEnv(gym.Env):
     @property
     def action_space(self):
         if self._action_space is None:
-            print("InitialisationError: Must reset() environment first.")
+            print("[Py-INFO] InitialisationError: Must reset() environment first.")
 
         return self._action_space
 
     @property
     def observation_space(self):
         if self._observation_space is None:
-            print("InitialisationError: Must reset() environment first.")
+            print("[Py-INFO] InitialisationError: Must reset() environment first.")
 
         return self._observation_space
 
