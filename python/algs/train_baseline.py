@@ -19,6 +19,10 @@ import torch.optim as optim
 from external import *
 import envs # registers the environment
 
+import multiprocessing as mp
+PYTHON_EXEC = '/home/dsaxena/work/code/python/venvs/p36ws/bin/python'
+mp.set_executable(PYTHON_EXEC)
+
 def main():
     args = get_args()
 
