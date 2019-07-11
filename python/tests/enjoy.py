@@ -24,14 +24,15 @@ env = make_vec_envs(
 # Get a render function
 render_func = get_render_func(env)
 timestr = time.strftime("%Y%m%d-%H%M%S")
-change = args.change * "-Change-best" + (not args.change) * "-Follow-best"
-gifdir = args.load_dir + args.algo + '/gifs/' + args.env_name.lower() + change.lower() + '/' + timestr + '/'
+change = args.change * "-Change" + (not args.change) * "-Follow"
+cars = "-{}cars".format(args.cars)
+gifdir = args.load_dir + args.algo + '/gifs/' + args.env_name.lower() + change.lower() + cars.lower() + '/' + timestr + '/'
 if not os.path.exists(gifdir):
     os.makedirs(gifdir)
 
 # We need to use the same statistics for normalization as used in training
 actor_critic, ob_rms = \
-            torch.load(os.path.join(args.load_dir, args.algo, args.env_name + change + ".pt"))
+            torch.load(os.path.join(args.load_dir, args.algo, args.env_name + change + cars + ".pt"), map_location=device)
 actor_critic.eval()
 
 vec_norm = get_vec_normalize(env)
@@ -54,7 +55,7 @@ for episode in range(1, args.eval_episodes+1):
             value, action, _, recurrent_hidden_states = actor_critic.act(
                     obs, recurrent_hidden_states, masks, deterministic=args.det)
 
-        # render_func(filename)
+        # Observe reward and next obs
         obs, reward, terminal, debug = env.step(action)
         masks.fill_(0.0 if terminal else 1.0)
         ep_reward += reward

@@ -72,7 +72,7 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     end
 
     v0 = rand() * params.v_des
-    s0 = params.ego_pos * (params.room / 1.0)
+    s0 = params.ego_pos * (params.room / 2.0)
     lane0 = LaneTag(segment, lane)
     t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
     ϕ0 = (2 * rand() - 1) * 0.3 # max steering angle
@@ -101,7 +101,7 @@ function populate_others(params::EnvParams, roadway::Roadway{Float64})
         type = rand()
 
         v0 = rand() * params.v_des
-        s0 = i * (params.room / 1.0)
+        s0 = i * (params.room / 2.0)
         lane0 = LaneTag(segment, lane)
         t0 = (rand() - 0.5) * (2 * DEFAULT_LANE_WIDTH/4.0)
         ϕ0 = (2 * rand() - 1) * 0.1

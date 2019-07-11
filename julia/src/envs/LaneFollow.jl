@@ -25,12 +25,8 @@ function make_env(params::EnvParams)
     ego, lanetag = get_initial_egostate(params, roadway)
     if params.change
         seg = lanetag.segment
-        lane = lanetag.lane
-        if lane > 1
-            lane = 1
-        else
-            lane = 2
-        end
+        # lane = rand(filter(l->l != lanetag.lane, 1:params.lanes))
+        lane = rand(1:params.lanes)
         lanetag = LaneTag(seg, lane)
     end
     veh = get_by_id(ego, EGO_ID)
@@ -75,7 +71,7 @@ function observe(env::EnvState)
     return ego_o, in_lane
 end
 
-function burn_in_sim!(env::EnvState; steps::Int=20)
+function burn_in_sim!(env::EnvState; steps::Int=0)
     other_actions = Array{Any}(undef, length(env.scene))
     for step in 1:steps
         get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
@@ -116,13 +112,13 @@ function is_terminal(env::EnvState; init::Bool=false)
 
     done = done || (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) # off roadway
     done = done || is_crash(env, init=init)
-    final_r -= done * 10.0
+    final_r -= done * 100.0
 
-    if !env.params.stadium
-        dist = distance_from_end(env.params, ego)
-        done = done || (dist <= 0.05) # no more road left
-        final_r += done * 10.0
-    end
+    # if !env.params.stadium
+    #     dist = distance_from_end(env.params, ego)
+    #     done = done || (dist <= 0.05) # no more road left
+    #     final_r += done * 10.0
+    # end
 
     done, final_r
 end
