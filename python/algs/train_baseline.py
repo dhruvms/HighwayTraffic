@@ -44,6 +44,8 @@ def main():
     # envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
     #                      args.gamma, args.log_dir, device, False)
     envs = make_vec_envs(args, device, False)
+    action_space_hi = envs.action_space.high
+    action_space_lo = envs.action_space.low
 
     other_cars = args.cars > 1
     actor_critic = Policy(
@@ -52,6 +54,7 @@ def main():
         other_cars=other_cars, ego_dim=args.ego_dim,
         base_kwargs={'recurrent': args.recurrent_policy})
     actor_critic.to(device)
+    print(actor_critic)
 
     if args.algo == 'a2c':
         agent = algo.A2C_ACKTR(
@@ -106,6 +109,9 @@ def main():
                     rollouts.obs[step], rollouts.recurrent_hidden_states[step],
                     rollouts.masks[step])
 
+            # # Clamp action to limits
+            # torch.clamp_(action[:, 0], action_space_lo[0], action_space_hi[0])
+            # torch.clamp_(action[:, 1], action_space_lo[1], action_space_hi[1])
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
 

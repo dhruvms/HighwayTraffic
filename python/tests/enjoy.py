@@ -20,6 +20,8 @@ env = make_vec_envs(
     args,
     device,
     allow_early_resets=True)
+action_space_hi = env.action_space.high
+action_space_lo = env.action_space.low
 
 # Get a render function
 render_func = get_render_func(env)
@@ -55,6 +57,9 @@ for episode in range(1, args.eval_episodes+1):
             value, action, _, recurrent_hidden_states = actor_critic.act(
                     obs, recurrent_hidden_states, masks, deterministic=args.det)
 
+        # # Clamp action to limits
+        # torch.clamp_(action[:, 0], action_space_lo[0], action_space_hi[0])
+        # torch.clamp_(action[:, 1], action_space_lo[1], action_space_hi[1])
         # Observe reward and next obs
         obs, reward, terminal, debug = env.step(action)
         masks.fill_(0.0 if terminal else 1.0)

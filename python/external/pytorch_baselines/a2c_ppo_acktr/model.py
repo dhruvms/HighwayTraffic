@@ -33,6 +33,8 @@ class Policy(nn.Module):
         elif action_space.__class__.__name__ == "Box":
             num_outputs = action_space.shape[0]
             self.dist = DiagGaussian(self.base.output_size, num_outputs)
+            self.hi_lim = action_space.high
+            self.lo_lim = action_space.low
         elif action_space.__class__.__name__ == "MultiBinary":
             num_outputs = action_space.shape[0]
             self.dist = Bernoulli(self.base.output_size, num_outputs)
@@ -59,6 +61,12 @@ class Policy(nn.Module):
             action = dist.mode()
         else:
             action = dist.sample()
+
+        # try:
+        #     torch.clamp_(action[:, 0], self.lo_lim[0], self.hi_lim[0])
+        #     torch.clamp_(action[:, 1], self.lo_lim[1], self.hi_lim[1])
+        # except:
+        #     pass
 
         action_log_probs = dist.log_probs(action)
         dist_entropy = dist.entropy().mean()
@@ -106,7 +114,7 @@ class NNBase(nn.Module):
 
     @property
     def output_size(self):
-        return self._hidden_size
+        return self._hidden_size//2
 
     def _forward_gru(self, x, hxs, masks):
         if x.size(0) == hxs.size(0):
@@ -196,7 +204,7 @@ class CNNBase(NNBase):
 
 
 class MLPBase(NNBase):
-    def __init__(self, num_inputs, other_cars=False, ego_dim=None, recurrent=False, hidden_size=256):
+    def __init__(self, num_inputs, other_cars=False, ego_dim=None, recurrent=False, hidden_size=128):
         super(MLPBase, self).__init__(recurrent, num_inputs, hidden_size)
 
         if recurrent:
@@ -215,22 +223,22 @@ class MLPBase(NNBase):
                 init_(nn.Linear(hidden_size, hidden_size)), nn.Tanh())
 
             self.actor = nn.Sequential(
-                init_(nn.Linear(hidden_size+self.ego_dim, hidden_size)), nn.Tanh(),
-                init_(nn.Linear(hidden_size, hidden_size)), nn.Tanh())
+                init_(nn.Linear(hidden_size+self.ego_dim, hidden_size//2)), nn.Tanh(),
+                init_(nn.Linear(hidden_size//2, hidden_size//2)), nn.Tanh())
 
             self.critic = nn.Sequential(
-                init_(nn.Linear(hidden_size+self.ego_dim, hidden_size)), nn.Tanh(),
-                init_(nn.Linear(hidden_size, hidden_size)), nn.Tanh())
+                init_(nn.Linear(hidden_size+self.ego_dim, hidden_size//2)), nn.Tanh(),
+                init_(nn.Linear(hidden_size//2, hidden_size//2)), nn.Tanh())
         else:
             self.actor = nn.Sequential(
                 init_(nn.Linear(num_inputs, hidden_size)), nn.Tanh(),
-                init_(nn.Linear(hidden_size, hidden_size)), nn.Tanh())
+                init_(nn.Linear(hidden_size, hidden_size//2)), nn.Tanh())
 
             self.critic = nn.Sequential(
                 init_(nn.Linear(num_inputs, hidden_size)), nn.Tanh(),
-                init_(nn.Linear(hidden_size, hidden_size)), nn.Tanh())
+                init_(nn.Linear(hidden_size, hidden_size//2)), nn.Tanh())
 
-        self.critic_linear = init_(nn.Linear(hidden_size, 1))
+        self.critic_linear = init_(nn.Linear(hidden_size//2, 1))
 
         self.train()
 

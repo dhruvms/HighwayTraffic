@@ -30,13 +30,13 @@ function distance_from_end(params::EnvParams, veh::Agent)
     return (params.length - veh.state.state.posF.s) / params.length
 end
 
-function dict_to_params(params::Dict)
+function dict_to_simparams(params::Dict)
     length = get(params, "length", 1000.0)
     lanes = get(params, "lanes", 3)
     cars = get(params, "cars", 30)
     dt = get(params, "dt", 0.2)
     max_ticks = get(params, "max_steps", 100)
-    room = CAR_LENGTH
+    room = CAR_LENGTH * 2.0
     stadium = get(params, "stadium", false)
     change = get(params, "change", false)
 
@@ -71,23 +71,29 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
         lane = params.lanes - (params.ego_pos % params.lanes)
     end
 
-    v0 = rand() * params.v_des
-    s0 = params.ego_pos * (params.room / 2.0)
+    v0 = rand() * (params.v_des/3.0)
+    s0 = (params.ego_pos / params.lanes) * params.room
     lane0 = LaneTag(segment, lane)
-    t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
-    ϕ0 = (2 * rand() - 1) * 0.3 # max steering angle
+    # t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
+    # ϕ0 = (2 * rand() - 1) * 0.3 # max steering angle
+    t0 = 0.0
+    ϕ0 = 0.0
     ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0), EgoVehicle(), EGO_ID)
     return Frame([ego]), lane0
 end
 
-function populate_others(params::EnvParams, roadway::Roadway{Float64})
+function populate_others(params::P, roadway::Roadway{Float64}, ego_pos::Int) where P <: AbstractParams
     scene = Scene()
     carcolours = Dict{Int, Colorant}()
     models = Dict{Int, DriverModel}()
 
     v_num = EGO_ID + 1
+    if ego_pos == -1
+        v_num = 1
+    end
+
     for i in 1:(params.cars)
-        if i == params.ego_pos
+        if i == ego_pos
             continue
         end
 
@@ -100,11 +106,14 @@ function populate_others(params::EnvParams, roadway::Roadway{Float64})
         end
         type = rand()
 
-        v0 = rand() * params.v_des
-        s0 = i * (params.room / 2.0)
+        v0 = rand() * (params.v_des/3.0)
+        v_des = rand() * (params.v_des - (params.v_des/3.0)) + (params.v_des/3.0)
+        s0 = (i / params.lanes) * params.room
         lane0 = LaneTag(segment, lane)
-        t0 = (rand() - 0.5) * (2 * DEFAULT_LANE_WIDTH/4.0)
-        ϕ0 = (2 * rand() - 1) * 0.1
+        # t0 = (rand() - 0.5) * (2 * DEFAULT_LANE_WIDTH/4.0)
+        # ϕ0 = (2 * rand() - 1) * 0.1
+        t0 = 0.0
+        ϕ0 = 0.0
         posF = Frenet(roadway[lane0], s0, t0, ϕ0)
 
         push!(scene, Vehicle(VehicleState(posF, roadway, v0), VehicleDef(), v_num))
@@ -135,7 +144,7 @@ function populate_others(params::EnvParams, roadway::Roadway{Float64})
                 MONOKAY["color5"]
             end
         end
-        AutomotiveDrivingModels.set_desired_speed!(models[v_num], params.v_des)
+        AutomotiveDrivingModels.set_desired_speed!(models[v_num], v_des)
         v_num += 1
     end
 
@@ -157,13 +166,20 @@ function get_featurevec(env::EnvState, neighbour::NeighborLongitudinalResult,
                             ego_lanetag::LaneTag;
                             lane::Int=0, rear::Bool=false)
     if isnothing(neighbour.ind) ||
-        abs(neighbour.Δs) > 3 * CAR_LENGTH # car is too far
+        abs(neighbour.Δs) > 10 * CAR_LENGTH # car is too far
         return zeros(env.params.other_dim)
     else
+        veh = env.scene[neighbour.ind]
+        veh_proj = proj(veh.state.posG, env.roadway)
+        if (abs(veh_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0)
+            # neighbour is off road
+            return zeros(env.params.other_dim)
+        end
+
         ego = get_by_id(env.ego, EGO_ID)
 
         Δs = (neighbour.Δs * (rear * -1 + !rear * 1))
-        v = env.scene[neighbour.ind].state.v
+        Δv = env.scene[neighbour.ind].state.v - ego.state.state.v
         lane_id = zeros(3)
         lane_id[lane] = 1
         neighbour_proj = Frenet(env.scene[neighbour.ind].state.posG, env.roadway[ego_lanetag], env.roadway)
@@ -173,7 +189,7 @@ function get_featurevec(env::EnvState, neighbour::NeighborLongitudinalResult,
             return zeros(env.params.other_dim)
         end
 
-        vec = vcat([Δs, v], lane_id, [Δt, Δϕ])
+        vec = vcat([Δs, Δt, Δϕ, Δv], lane_id)
         return vec
     end
 end
@@ -197,18 +213,18 @@ function get_neighbour_featurevecs(env::EnvState)
     features
 end
 
-function is_crash(env::EnvState; init::Bool=false)
+function is_crash(env::E; init::Bool=false) where E <: AbstractEnv
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
-    ego = get_by_id(env.ego, EGO_ID)
-
-    if ego.state.state.v ≈ 0
-        return false
-    end
+    ego =   try
+                get_by_id(env.ego, EGO_ID)
+            catch
+                nothing
+            end
 
     if !init
         for veh in env.scene
             if veh.id != EGO_ID
-                if is_colliding(Vehicle(ego), veh)
+                if !isnothing(ego) && is_colliding(Vehicle(ego), veh)
                     return true
                 end
             end

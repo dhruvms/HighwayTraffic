@@ -145,7 +145,7 @@ def get_args():
         help='whether to use a non-deterministic policy')
 
     # HighwayTraffic simulation related parameters
-    parser.add_argument('--length', default=100.0, type=float,
+    parser.add_argument('--length', default=1000.0, type=float,
         help='Roadway length')
     parser.add_argument('--lanes', default=3, type=int,
         help='Number of lanes on roadway')

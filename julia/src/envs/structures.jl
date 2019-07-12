@@ -1,7 +1,10 @@
 const EGO_ID = 1
 const CAR_LENGTH = 4.0
 
-mutable struct EnvParams
+abstract type AbstractParams end
+abstract type AbstractEnv end
+
+mutable struct EnvParams <: AbstractParams
     length::Float64 # length of roadway
     lanes::Int # number of lanes in roadway
     cars::Int # number of cars on roadway, including egovehicle
@@ -25,7 +28,7 @@ mutable struct EnvParams
     t_cost::Float64
 end
 
-mutable struct EnvState
+mutable struct EnvState <: AbstractEnv
     params::EnvParams
     roadway::Roadway{Float64}
     scene::Scene

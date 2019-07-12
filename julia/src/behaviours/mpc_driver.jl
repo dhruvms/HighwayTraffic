@@ -108,18 +108,18 @@ Select target lane based on available room in right, middle and left lanes
 """
 function lane_tag_modifier(right::Bool, left::Bool, rΔ::Float64, lΔ::Float64,
 							mΔ::Float64)
-	if left && lΔ > mΔ
+	if left && lΔ > mΔ + CAR_LENGTH * 2.0
 		if right
-			if lΔ > rΔ
+			if lΔ > rΔ + CAR_LENGTH * 2.0
 				return 1, lΔ
 			end
 		end
 		return 1, lΔ
 	end
 
-	if right && rΔ > mΔ
+	if right && rΔ > mΔ + CAR_LENGTH * 2.0
 		if left
-			if rΔ > lΔ
+			if rΔ > lΔ + CAR_LENGTH * 2.0
 				return -1, rΔ
 			end
 		end

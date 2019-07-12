@@ -31,7 +31,7 @@ function make_env(params::EnvParams)
     end
     veh = get_by_id(ego, EGO_ID)
 
-    scene, models, colours = populate_others(params, roadway)
+    scene, models, colours = populate_others(params, roadway, params.ego_pos)
     push!(scene, Vehicle(veh))
     colours[EGO_ID] = COLOR_CAR_EGO
 
@@ -82,7 +82,7 @@ function burn_in_sim!(env::EnvState; steps::Int=0)
 end
 
 function Base.reset(paramdict::Dict)
-    params = dict_to_params(paramdict)
+    params = dict_to_simparams(paramdict)
     env = make_env(params)
     burn_in_sim!(env)
     check, _ = is_terminal(env)
@@ -134,8 +134,13 @@ function reward(env::EnvState, action::Vector{Float32})
 
     reward = 1.0
     # action cost
-    reward -= env.params.j_cost * abs(action[1])
-    reward -= env.params.δdot_cost * abs(action[2])
+    action_lims = action_space(env.params)
+    reward -= env.params.j_cost * (abs(action[1]) +
+                100.0 * (action[1] < action_lims[1][1] ||
+                                                action[1] > action_lims[2][1]))
+    reward -= env.params.δdot_cost * (abs(action[2]) +
+                100.0 * (action[2] < action_lims[1][2] ||
+                                    action[2] > action_lims[2][2]))
     reward -= env.params.a_cost * abs(ego.state.a)
     # desired velocity cost
     reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
@@ -205,12 +210,15 @@ function step!(env::EnvState, action::Vector{Float32})
     other_actions = Array{Any}(undef, length(env.scene))
     get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
 
+    ego = get_by_id(env.ego, EGO_ID)
+    s_prev = ego.state.state.posF.s
+
     env, done = tick!(env, action, other_actions) # move to next state
     update!(env.rec, env.scene)
     r = reward(env, action)
     o, in_lane = observe(env)
     terminal, final_r = is_terminal(env)
-    terminal = terminal || done
+    final_r -= env.params.v_cost * 100.0 * done
 
     if Bool(terminal)
         r += final_r
@@ -219,9 +227,11 @@ function step!(env::EnvState, action::Vector{Float32})
         end
     end
 
-    ego = env.scene[findfirst(EGO_ID, env.scene)]
-    info = [ego.state.posF.s, ego.state.posF.t,
-                ego.state.posF.ϕ, ego.state.v]
+    ego = get_by_id(env.ego, EGO_ID)
+    r += max(ego.state.state.posF.s - s_prev, 0.0)
+
+    info = [ego.state.state.posF.s, ego.state.state.posF.t,
+                ego.state.state.posF.ϕ, ego.state.state.v]
 
     (o, r, terminal, info, copy(env))
 end
