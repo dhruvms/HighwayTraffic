@@ -33,3 +33,4 @@ register(
 )
 
 from julia_env import JuliaEnv
+from zmq_env_tcn import ZMQEnvTCN

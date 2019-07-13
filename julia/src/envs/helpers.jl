@@ -62,6 +62,25 @@ function dict_to_simparams(params::Dict)
                 j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost)
 end
 
+function dict_to_tcnparams(params::Dict)
+    length = get(params, "length", 100.0)
+    lanes = get(params, "lanes", 3)
+    cars = get(params, "cars", 20)
+    dt = get(params, "dt", 0.2)
+    max_ticks = get(params, "max_steps", 100)
+    room = CAR_LENGTH * 2.0
+    stadium = get(params, "stadium", false)
+
+    v_des = get(params, "v_des", 15.0)
+    sampled = get(params, "sampled", 1)
+    features = get(params, "features", 7)
+    max_neighbours = get(params, "neighbours", 10)
+    radius = get(params, "radius", 10.0)
+
+    TCNParams(length, lanes, cars, dt, max_ticks, room, stadium,
+                v_des, sampled, features, max_neighbours, radius)
+end
+
 function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     if params.stadium
         segment = (params.ego_pos % 2) * 6 + (1 - params.ego_pos % 2) * 3
@@ -240,4 +259,82 @@ function is_crash(env::E; init::Bool=false) where E <: AbstractEnv
     end
 
     return false
+end
+
+function get_neighbours_frenet(env::TCNEnv, car_id::Int)
+    carF = env.scene[car_id].state.posF
+
+    dists = zeros(env.params.cars)
+    for (i, veh) in enumerate(env.scene)
+        vehF = Frenet(veh.state.posG,
+                            env.roadway[carF.roadind.tag], env.roadway)
+        Δlanes = floor(abs(vehF.t - carF.t) / DEFAULT_LANE_WIDTH)
+        if Δlanes ≥ 2
+            dists[i] = 1.1
+            continue
+        end
+
+        Δs = abs(vehF.s - carF.s)
+        Δs = Δs / ((1 + Δlanes)^2 * env.params.radius)
+
+        dists[i] = Δs
+    end
+
+    valid_neighbours = min(length(dists[dists .≤ 1.0]),
+                            env.params.max_neighbours)
+
+    idxs = sortperm(dists)[2:valid_neighbours+1]
+    idxs
+end
+
+function get_neighbours(env::TCNEnv, car_id::Int; frenet::Bool=false)
+    if frenet
+        return get_neighbours_frenet(env, car_id)
+    end
+
+    testcar = convert(VecE2, env.scene[car_id].state.posG)
+    dists = zeros(env.params.cars)
+    for (i, veh) in enumerate(env.scene)
+        dists[i] = dist(convert(VecE2, veh.state.posG), testcar)
+    end
+
+    valid_neighbours = min(length(dists[dists .≤ env.params.radius]),
+                            env.params.max_neighbours)
+
+    idxs = sortperm(dists)[2:valid_neighbours]
+    idxs
+end
+
+function relative_lane(l_ego::Int, l_other::Int)
+    if l_ego == l_other
+        return 2
+    elseif l_ego > l_other
+        return 3
+    else
+        return 1
+    end
+end
+
+function get_features(env::TCNEnv, car_id::Int, ids::Vector{Int})
+    car = env.scene[car_id].state
+    featuremat = zeros(length(ids), env.params.features)
+
+    for (i, neighbour) in enumerate(ids)
+        veh = env.scene[neighbour]
+        vehF = Frenet(veh.state.posG,
+                            env.roadway[car.posF.roadind.tag], env.roadway)
+
+        Δs = vehF.s - car.posF.s
+        Δt = vehF.t - car.posF.t
+        Δϕ = WrapPosNegPi(vehF.ϕ - car.posF.ϕ)
+        Δv = veh.state.v - car.v
+
+        lane = veh.state.posF.roadind.tag.lane
+        lane_id = zeros(3)
+        lane_id[relative_lane(car.posF.roadind.tag.lane, lane)] = 1
+
+        featuremat[i, :] = vcat([Δs, Δt, Δϕ, Δv], lane_id)'
+    end
+
+    featuremat
 end
