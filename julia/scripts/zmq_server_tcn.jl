@@ -21,7 +21,7 @@ parsed_args = parse_args(ARGS, s)
 port = parsed_args["port"]
 ip = parsed_args["ip"]
 
-function process!(env::EnvState, msg::Dict{String, T}) where T
+function process!(env::TCNEnv, msg::Dict{String, T}) where T
     if "cmd" in keys(msg)
         if msg["cmd"] == "render"
             filename = msg["filename"]
@@ -42,7 +42,7 @@ function process!(env::EnvState, msg::Dict{String, T}) where T
     respmsg, env
 end
 
-function run_env_server(ip, port, env::EnvState)
+function run_env_server(ip, port, env::TCNEnv)
     conn = ZMQTransport(ip, port, ZMQ.REP, true)
     @info("running server: ", ip, port)
     while true

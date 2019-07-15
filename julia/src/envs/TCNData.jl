@@ -48,15 +48,14 @@ function observe(env::TCNEnv)
                                                                     frenet=true)
             env.prev_features[car_id] = get_features(env, car_id,
                                                     env.prev_neighbours[car_id])
-            display(env.prev_features[car_id])
+            # display(env.prev_features[car_id])
         end
 
         return env, 0
     else
+        env.DATA = zeros(env.params.sampled * env.params.max_neighbours * 2,
+                            env.params.features)
         for (i, car_id) in enumerate(env.car_ids)
-            env.DATA = zeros(env.params.sampled * env.params.max_neighbours * 2,
-                                                            env.params.features)
-
             offsetX = ((i-1) * env.params.max_neighbours * 2) + 1
             offsetY = ((i-1) * env.params.max_neighbours * 2) + 1 +
                                                     env.params.max_neighbours

@@ -84,10 +84,6 @@ class ZMQEnvTCN():
         infos = dict()
         infos['info'] = data["info"]
 
-        if data["done"] and self.params["eval"]:
-            filename = "eval_ep.gif"
-            self.render(filename)
-
         return data["obs"], data["rew"], data["done"], infos
 
     def kill(self):

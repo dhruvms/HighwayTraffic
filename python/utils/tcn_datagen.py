@@ -18,23 +18,23 @@ def gendata(args):
     env = ZMQEnvTCN()
     env.reset(args)
 
+    ep_start = 1
     DATA = None
 
     for episode in range(ep_start, args.episodes+1):
         obs = env.reset()
-        print(obs)
         for t in range(1, args.max_steps+1):
             obs, reward, terminal, debug = env.step()
-            print(obs)
 
             if DATA is None:
-                DATA = np.array(obs)
+                DATA = np.array(obs).T
             else:
-                DATA = np.vstack([DATA, np.array(obs)])
+                DATA = np.vstack([DATA, np.array(obs).T])
 
             if terminal or t == args.max_steps:
                 break
 
+    print("DATA shape = ", DATA.shape)
     np.savetxt(savedir + "DATA.csv", DATA, delimiter=",")
     params = np.array([args.sampled, args.features, args.neighbours])
     np.savetxt(savedir + "params.csv", params, delimiter=",")
@@ -50,11 +50,11 @@ def parse_args():
     parser.add_argument('--logdir', type=str, default='../logs/',
                         help='Log data folder')
 
-    parser.add_argument('--length', default=100.0, type=float,
+    parser.add_argument('--length', default=1000.0, type=float,
         help='Roadway length')
     parser.add_argument('--lanes', default=3, type=int,
         help='Number of lanes on roadway')
-    parser.add_argument('--cars', default=20, type=int,
+    parser.add_argument('--cars', default=40, type=int,
         help='Number of cars on roadway')
     parser.add_argument('--dt', default=0.2, type=float,
         help='Simulation timestep')
