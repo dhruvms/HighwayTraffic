@@ -42,7 +42,7 @@ function dict_to_simparams(params::Dict)
 
     ego_pos = rand(1:cars)
     v_des = get(params, "v_des", 15.0)
-    ego_dim = get(params, "ego_dim", 6)
+    ego_dim = get(params, "ego_dim", 8)
     other_dim = get(params, "other_dim", 7)
     o_dim = ego_dim + (6 * other_dim) * (cars > 1)
 
@@ -117,7 +117,7 @@ function populate_others(params::P, roadway::Roadway{Float64}, ego_pos::Int) whe
         posF = Frenet(roadway[lane0], s0, t0, ϕ0)
 
         push!(scene, Vehicle(VehicleState(posF, roadway, v0), VehicleDef(), v_num))
-        if type <= 0.2
+        if type < 0.0
             models[v_num] = MPCDriver(params.dt)
             v0 = 0.0
             carcolours[v_num] = try
@@ -125,7 +125,7 @@ function populate_others(params::P, roadway::Roadway{Float64}, ego_pos::Int) whe
             catch
                 MONOKAY["color3"]
             end
-        elseif type > 0.2 && type <= 0.6
+        elseif type >= 0.0 && type <= 0.5
             models[v_num] = Tim2DDriver(params.dt,
                                         mlon=IntelligentDriverModel(ΔT=params.dt))
             carcolours[v_num] = try
@@ -160,6 +160,7 @@ function get_neighbours(env::EnvState, ego_idx::Int)
     rear_R = get_neighbor_rear_along_right_lane(env.scene, ego_idx, env.roadway, VehicleTargetPointFront(), VehicleTargetPointFront(), VehicleTargetPointFront(), max_distance_rear=env.params.length)
 
     (fore_M, fore_L, fore_R, rear_M, rear_L, rear_R)
+    # (fore_M, rear_M)
 end
 
 function get_featurevec(env::EnvState, neighbour::NeighborLongitudinalResult,
@@ -200,6 +201,7 @@ function get_neighbour_featurevecs(env::EnvState)
     ego_lane = get_lane(env.roadway, ego.state.state)
 
     fore_M, fore_L, fore_R, rear_M, rear_L, rear_R = get_neighbours(env, ego_idx)
+    # fore_M, rear_M = get_neighbours(env, ego_idx)
 
     # lane = 1 (left), 2 (middle), or 3 (right)
     fore_M = get_featurevec(env, fore_M, ego_lane.tag, lane=2)
@@ -210,6 +212,7 @@ function get_neighbour_featurevecs(env::EnvState)
     rear_R = get_featurevec(env, rear_R, ego_lane.tag, lane=3, rear=true)
 
     features = vcat(fore_M, fore_L, fore_R, rear_M, rear_L, rear_R)
+    # features = vcat(fore_M, rear_M)
     features
 end
 
