@@ -59,9 +59,10 @@ function observe(env::EnvState)
     v = ego.state.state.v
     a = ego.state.a
     δ = ego.state.δ
+    action = reshape(env.action_state, 4, :)'[end, 1:2]
 
     # TODO: normalise?
-    ego_o = [in_lane, t, ϕ, v, a, δ]
+    ego_o = [in_lane, t, ϕ, v, a, δ, action[1], action[2]]
     if env.params.cars - 1 > 0
         other_o = get_neighbour_featurevecs(env)
         o = vcat(ego_o, other_o)
@@ -107,8 +108,8 @@ function is_terminal(env::EnvState; init::Bool=false)
     ego = get_by_id(env.ego, EGO_ID)
     road_proj = proj(ego.state.state.posG, env.roadway)
 
-    done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
-    final_r -= done * 5.0
+    # done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
+    # final_r -= done * 5.0
 
     done = done || (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) # off roadway
     done = done || is_crash(env, init=init)
@@ -136,10 +137,10 @@ function reward(env::EnvState, action::Vector{Float32})
     # action cost
     action_lims = action_space(env.params)
     reward -= env.params.j_cost * (abs(action[1]) +
-                100.0 * (action[1] < action_lims[1][1] ||
+                20.0 * (action[1] < action_lims[1][1] ||
                                                 action[1] > action_lims[2][1]))
     reward -= env.params.δdot_cost * (abs(action[2]) +
-                100.0 * (action[2] < action_lims[1][2] ||
+                20.0 * (action[2] < action_lims[1][2] ||
                                     action[2] > action_lims[2][2]))
     reward -= env.params.a_cost * abs(ego.state.a)
     # desired velocity cost
@@ -162,11 +163,11 @@ function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float32},
     a = ego.state.a
     δ = ego.state.δ
 
-    done = false
+    neg_v = false
     for (i, veh) in enumerate(env.scene)
         if veh.id == EGO_ID
             if !init
-                state′, done = propagate(ego, action, env.roadway, env.params.dt)
+                state′, neg_v = propagate(ego, action, env.roadway, env.params.dt)
                 env.scene[findfirst(EGO_ID, env.scene)] = Vehicle(state′)
                 env.ego = Frame([state′])
 
@@ -181,7 +182,7 @@ function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float32},
     end
 
     env.action_state = vcat(env.action_state, append!(action, [a, δ]))
-    (env, done)
+    (env, neg_v)
 end
 
 function AutomotiveDrivingModels.get_actions!(
@@ -213,18 +214,20 @@ function step!(env::EnvState, action::Vector{Float32})
     ego = get_by_id(env.ego, EGO_ID)
     s_prev = ego.state.state.posF.s
 
-    env, done = tick!(env, action, other_actions) # move to next state
+    env, neg_v = tick!(env, action, other_actions) # move to next state
     update!(env.rec, env.scene)
+
     r = reward(env, action)
     o, in_lane = observe(env)
     terminal, final_r = is_terminal(env)
-    final_r -= env.params.v_cost * 100.0 * done
+
+    r -= env.params.v_cost * 20.0 * neg_v
 
     if Bool(terminal)
         r += final_r
-        if Bool(in_lane)
-            r += 1.0
-        end
+    end
+    if Bool(in_lane)
+        r += 10.0
     end
 
     ego = get_by_id(env.ego, EGO_ID)

@@ -159,7 +159,7 @@ def get_args():
         help='Max desired velocity')
     parser.add_argument('--dt', default=0.2, type=float,
         help='Simulation timestep')
-    parser.add_argument('--ego-dim', default=6, type=int,
+    parser.add_argument('--ego-dim', default=8, type=int,
         help='Egovehicle feature dimension')
     parser.add_argument('--other-dim', default=7, type=int,
         help='Other vehicle feature dimension')
