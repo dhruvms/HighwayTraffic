@@ -72,6 +72,15 @@ function observe(env::EnvState)
     return ego_o, in_lane
 end
 
+function observe_occupancy(env::EnvState)
+    ego = get_by_id(env.ego, EGO_ID)
+    lane = get_lane(env.roadway, ego.state.state)
+    in_lane = lane.tag.lane == env.init_lane.lane ? 1 : 0
+
+    o = get_occupancy_image(env)
+    return o, in_lane
+end
+
 function burn_in_sim!(env::EnvState; steps::Int=0)
     other_actions = Array{Any}(undef, length(env.scene))
     for step in 1:steps
@@ -95,7 +104,11 @@ function Base.reset(paramdict::Dict)
     env.action_state = env.action_state[end-3:end]
     update!(env.rec, env.scene)
 
-    o, _ = observe(env)
+    if env.params.occupancy
+        o, _ = observe_occupancy(env)
+    else
+        o, _ = observe(env)
+    end
 
     (env, o)
 end
@@ -136,12 +149,12 @@ function reward(env::EnvState, action::Vector{Float32})
     reward = 1.0
     # action cost
     action_lims = action_space(env.params)
-    reward -= env.params.j_cost * (abs(action[1]) +
+    reward -= env.params.j_cost * abs(action[1]) +
                 20.0 * (action[1] < action_lims[1][1] ||
-                                                action[1] > action_lims[2][1]))
-    reward -= env.params.δdot_cost * (abs(action[2]) +
+                                                action[1] > action_lims[2][1])
+    reward -= env.params.δdot_cost * abs(action[2]) +
                 20.0 * (action[2] < action_lims[1][2] ||
-                                    action[2] > action_lims[2][2]))
+                                    action[2] > action_lims[2][2])
     reward -= env.params.a_cost * abs(ego.state.a)
     # desired velocity cost
     reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
@@ -218,10 +231,16 @@ function step!(env::EnvState, action::Vector{Float32})
     update!(env.rec, env.scene)
 
     r = reward(env, action)
-    o, in_lane = observe(env)
+
+    if env.params.occupancy
+        o, in_lane = observe_occupancy(env)
+    else
+        o, in_lane = observe(env)
+    end
+
     terminal, final_r = is_terminal(env)
 
-    r -= env.params.v_cost * 20.0 * neg_v
+    r -= 20.0 * neg_v
 
     if Bool(terminal)
         r += final_r

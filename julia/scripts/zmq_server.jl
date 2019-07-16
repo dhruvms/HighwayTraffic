@@ -24,8 +24,8 @@ ip = parsed_args["ip"]
 function process!(env::EnvState, msg::Dict{String, T}) where T
     if "cmd" in keys(msg)
         if msg["cmd"] == "observation_space"
-            lo, hi = observation_space(env.params)
-            respmsg = Dict("lo" => lo, "hi" => hi)
+            lo, hi, shape = observation_space(env.params)
+            respmsg = Dict("lo" => lo, "hi" => hi, "shape" => shape)
         elseif msg["cmd"] == "action_space"
             lo, hi = action_space(env.params)
             respmsg = Dict("lo" => lo, "hi" => hi)

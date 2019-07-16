@@ -149,7 +149,7 @@ def get_args():
         help='Roadway length')
     parser.add_argument('--lanes', default=3, type=int,
         help='Number of lanes on roadway')
-    parser.add_argument('--cars', default=20, type=int,
+    parser.add_argument('--cars', default=30, type=int,
         help='Number of cars on roadway')
     parser.add_argument('--stadium', action='store_true', default=False,
         help='stadium roadway')
@@ -163,6 +163,8 @@ def get_args():
         help='Egovehicle feature dimension')
     parser.add_argument('--other-dim', default=7, type=int,
         help='Other vehicle feature dimension')
+    parser.add_argument('--occupancy', action='store_true', default=False,
+        help='occupancy grid observation')
     parser.add_argument('--j-cost', default=1.0, type=float,
         help='Jerk cost')
     parser.add_argument('--d-cost', default=10.0, type=float,
@@ -176,7 +178,7 @@ def get_args():
     parser.add_argument('--t-cost', default=10000.0, type=float,
         help='Lane lateral displacement cost')
 
-    parser.add_argument('--max-steps', type=int, default=100,
+    parser.add_argument('--max-steps', type=int, default=200,
                         help='Max steps per episode')
     parser.add_argument('--eval-episodes', type=int, default=10,
                         help='Evaluation episodes')

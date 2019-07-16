@@ -92,15 +92,18 @@ class ZMQEnv(gym.Env):
         data = self._conn.sendreq({"cmd": "reset", "params": self.params})
         assert "obs" in data
         obs = data["obs"]
+        if self.params["occupancy"]:
+            obs = np.array(obs)
+            obs = np.transpose(obs, (0, 2, 1))
 
         # get observation space information
         data = self._conn.sendreq({"cmd": "observation_space"})
-        lo, hi = np.array(data["lo"]), np.array(data["hi"])
-        if np.all(lo == None):
-            lo.fill(-np.inf)
-        if np.all(hi == None):
-            hi.fill(-np.inf)
-        self._observation_space = Box(lo, hi)
+        lo, hi, shape = data["lo"], data["hi"], data["shape"]
+        if lo is None:
+            lo = -np.inf
+        if hi is None:
+            hi = np.inf
+        self._observation_space = Box(lo, hi, shape=shape)
 
         # get action space information
         data = self._conn.sendreq({"cmd": "action_space"})
@@ -130,7 +133,12 @@ class ZMQEnv(gym.Env):
             filename = "eval_ep.gif"
             self.render(filename)
 
-        return data["obs"], data["rew"], data["done"], infos
+        obs = data["obs"]
+        if self.params["occupancy"]:
+            obs = np.array(obs)
+            obs = np.transpose(obs, (0, 2, 1))
+
+        return obs, data["rew"], data["done"], infos
 
     def kill(self):
         print("[Py-INFO] Kill Julia subprocess and close ZMQ Connection at %s:%d."

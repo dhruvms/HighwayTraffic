@@ -20,6 +20,7 @@ mutable struct EnvParams <: AbstractParams
     ego_dim::Int # egovehicle feature dimension
     other_dim::Int # other vehicle feature dimension
     o_dim::Int # observation space dimension
+    occupancy::Bool # use occupancy grid observation
 
     j_cost::Float64
     δdot_cost::Float64
@@ -52,5 +53,11 @@ Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene),
 
 
 action_space(params::EnvParams) = ([-4.0, -0.4], [2.0, 0.4])
-observation_space(params::EnvParams) = (fill(-Inf, params.o_dim),
-                                                        fill(Inf, params.o_dim))
+function observation_space(params::EnvParams)
+    if params.occupancy
+        fov = 2 * params.fov + 1
+        return (-Inf, Inf, (4, fov, 3))
+    else
+        return (-Inf, Inf, (params.o_dim,))
+    end
+end

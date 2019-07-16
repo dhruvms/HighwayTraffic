@@ -201,7 +201,7 @@ def parse_args():
                         help='Random seed')
     parser.add_argument('--episodes', type=int, default=1500,
                         help='Training episodes')
-    parser.add_argument('--max-steps', type=int, default=100,
+    parser.add_argument('--max-steps', type=int, default=200,
                         help='Max steps per episode')
     parser.add_argument('--update-always', action='store_true',
                         help='Update network every timestep')
@@ -228,11 +228,11 @@ def parse_args():
             help='Print debug info')
 
     # HighwayTraffic simulation related parameters
-    parser.add_argument('--length', default=100.0, type=float,
+    parser.add_argument('--length', default=1000.0, type=float,
         help='Roadway length')
     parser.add_argument('--lanes', default=3, type=int,
         help='Number of lanes on roadway')
-    parser.add_argument('--cars', default=20, type=int,
+    parser.add_argument('--cars', default=30, type=int,
         help='Number of cars on roadway')
     parser.add_argument('--stadium', action='store_true', default=False,
         help='stadium roadway')
@@ -242,10 +242,12 @@ def parse_args():
         help='Max desired velocity')
     parser.add_argument('--dt', default=0.2, type=float,
         help='Simulation timestep')
-    parser.add_argument('--ego-dim', default=6, type=int,
+    parser.add_argument('--ego-dim', default=8, type=int,
         help='Egovehicle feature dimension')
     parser.add_argument('--other-dim', default=7, type=int,
         help='Other vehicle feature dimension')
+    parser.add_argument('--occupancy', action='store_true', default=False,
+        help='occupancy grid observation')
     parser.add_argument('--j-cost', default=1.0, type=float,
         help='Jerk cost')
     parser.add_argument('--d-cost', default=10.0, type=float,

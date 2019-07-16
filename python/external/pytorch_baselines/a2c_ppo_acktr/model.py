@@ -114,7 +114,7 @@ class NNBase(nn.Module):
 
     @property
     def output_size(self):
-        return self._hidden_size//2
+        return self._hidden_size
 
     def _forward_gru(self, x, hxs, masks):
         if x.size(0) == hxs.size(0):
@@ -175,17 +175,18 @@ class NNBase(nn.Module):
 
 
 class CNNBase(NNBase):
-    def __init__(self, num_inputs, recurrent=False, hidden_size=512):
+    def __init__(self, num_inputs, recurrent=False, hidden_size=512,
+                        other_cars=None, ego_dim=None):
         super(CNNBase, self).__init__(recurrent, hidden_size, hidden_size)
 
         init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
                                constant_(x, 0), nn.init.calculate_gain('relu'))
 
         self.main = nn.Sequential(
-            init_(nn.Conv2d(num_inputs, 32, 8, stride=4)), nn.ReLU(),
-            init_(nn.Conv2d(32, 64, 4, stride=2)), nn.ReLU(),
-            init_(nn.Conv2d(64, 32, 3, stride=1)), nn.ReLU(), Flatten(),
-            init_(nn.Linear(32 * 7 * 7, hidden_size)), nn.ReLU())
+            init_(nn.Conv2d(num_inputs, 32, (4, 1), stride=(2, 1))), nn.ReLU(),
+            init_(nn.Conv2d(32, 64, (3, 1), stride=(2, 1))), nn.ReLU(),
+            init_(nn.Conv2d(64, 32, (2, 1), stride=1)), nn.ReLU(), Flatten(),
+            init_(nn.Linear(32 * 23 * 3, hidden_size)), nn.ReLU())
 
         init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
                                constant_(x, 0))
@@ -195,7 +196,7 @@ class CNNBase(NNBase):
         self.train()
 
     def forward(self, inputs, rnn_hxs, masks):
-        x = self.main(inputs / 255.0)
+        x = self.main(inputs)
 
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
@@ -204,7 +205,7 @@ class CNNBase(NNBase):
 
 
 class MLPBase(NNBase):
-    def __init__(self, num_inputs, other_cars=False, ego_dim=None, recurrent=False, hidden_size=128):
+    def __init__(self, num_inputs, other_cars=False, ego_dim=None, recurrent=False, hidden_size=64):
         super(MLPBase, self).__init__(recurrent, num_inputs, hidden_size)
 
         if recurrent:
@@ -219,26 +220,26 @@ class MLPBase(NNBase):
             self.ego_dim = ego_dim
             self.others_dim = num_inputs-self.ego_dim
             self.other_cars = nn.Sequential(
-                init_(nn.Linear(self.others_dim, hidden_size)), nn.Tanh(),
+                init_(nn.Linear(self.others_dim, 2*hidden_size)), nn.Tanh(),
+                init_(nn.Linear(2*hidden_size, 2*hidden_size)), nn.Tanh())
+
+            self.actor = nn.Sequential(
+                init_(nn.Linear(2*hidden_size+self.ego_dim, hidden_size)), nn.Tanh(),
                 init_(nn.Linear(hidden_size, hidden_size)), nn.Tanh())
 
-            self.actor = nn.Sequential(
-                init_(nn.Linear(hidden_size+self.ego_dim, hidden_size//2)), nn.Tanh(),
-                init_(nn.Linear(hidden_size//2, hidden_size//2)), nn.Tanh())
-
             self.critic = nn.Sequential(
-                init_(nn.Linear(hidden_size+self.ego_dim, hidden_size//2)), nn.Tanh(),
-                init_(nn.Linear(hidden_size//2, hidden_size//2)), nn.Tanh())
+                init_(nn.Linear(2*hidden_size+self.ego_dim, hidden_size)), nn.Tanh(),
+                init_(nn.Linear(hidden_size, hidden_size)), nn.Tanh())
         else:
             self.actor = nn.Sequential(
-                init_(nn.Linear(num_inputs, hidden_size)), nn.Tanh(),
-                init_(nn.Linear(hidden_size, hidden_size//2)), nn.Tanh())
+                init_(nn.Linear(num_inputs, 2*hidden_size)), nn.Tanh(),
+                init_(nn.Linear(2*hidden_size, hidden_size)), nn.Tanh())
 
             self.critic = nn.Sequential(
-                init_(nn.Linear(num_inputs, hidden_size)), nn.Tanh(),
-                init_(nn.Linear(hidden_size, hidden_size//2)), nn.Tanh())
+                init_(nn.Linear(num_inputs, 2*hidden_size)), nn.Tanh(),
+                init_(nn.Linear(2*hidden_size, hidden_size)), nn.Tanh())
 
-        self.critic_linear = init_(nn.Linear(hidden_size//2, 1))
+        self.critic_linear = init_(nn.Linear(hidden_size, 1))
 
         self.train()
 

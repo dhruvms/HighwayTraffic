@@ -23,6 +23,9 @@ import multiprocessing as mp
 PYTHON_EXEC = '/home/dsaxena/work/code/python/venvs/p36ws/bin/python'
 mp.set_executable(PYTHON_EXEC)
 
+# import matplotlib.pyplot as plt
+# fig, ax = plt.subplots(1, 4, sharey=True)
+
 def main():
     args = get_args()
 
@@ -44,8 +47,8 @@ def main():
     # envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
     #                      args.gamma, args.log_dir, device, False)
     envs = make_vec_envs(args, device, False)
-    action_space_hi = envs.action_space.high
-    action_space_lo = envs.action_space.low
+    # action_space_hi = envs.action_space.high
+    # action_space_lo = envs.action_space.low
 
     other_cars = args.cars > 1
     actor_critic = Policy(
@@ -114,6 +117,11 @@ def main():
             # torch.clamp_(action[:, 1], action_space_lo[1], action_space_hi[1])
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
+            # ax[0].imshow(obs.data.cpu().numpy()[0, -4, :, :])
+            # ax[1].imshow(obs.data.cpu().numpy()[0, -3, :, :])
+            # ax[2].imshow(obs.data.cpu().numpy()[0, -2, :, :])
+            # ax[3].imshow(obs.data.cpu().numpy()[0, -1, :, :])
+            # plt.pause(0.00001)
 
             for info in infos:
                 if 'episode' in info.keys():
@@ -157,12 +165,12 @@ def main():
                 getattr(utils.get_vec_normalize(envs), 'ob_rms', None)
             ], os.path.join(save_path, args.env_name + change + cars + ".pt"))
 
-            if median_ep_reward > best_median:
-                best_median = median_ep_reward
-                torch.save([
-                    actor_critic,
-                    getattr(utils.get_vec_normalize(envs), 'ob_rms', None)
-                ], os.path.join(save_path, args.env_name + change + cars + "-best" + ".pt"))
+            # if median_ep_reward > best_median:
+            #     best_median = median_ep_reward
+            #     torch.save([
+            #         actor_critic,
+            #         getattr(utils.get_vec_normalize(envs), 'ob_rms', None)
+            #     ], os.path.join(save_path, args.env_name + change + cars + "-best" + ".pt"))
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             total_num_steps = (j + 1) * args.num_processes * args.num_steps
