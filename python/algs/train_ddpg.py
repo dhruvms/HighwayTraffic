@@ -238,6 +238,8 @@ def parse_args():
         help='stadium roadway')
     parser.add_argument('--change', action='store_true', default=False,
         help='change lanes')
+    parser.add_argument('--both', action='store_true', default=False,
+        help='change or follow')
     parser.add_argument('--v-des', default=15.0, type=float,
         help='Max desired velocity')
     parser.add_argument('--dt', default=0.2, type=float,

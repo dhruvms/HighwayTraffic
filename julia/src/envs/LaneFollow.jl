@@ -25,10 +25,16 @@ function make_env(params::EnvParams)
     ego, lanetag = get_initial_egostate(params, roadway)
     if params.change
         seg = lanetag.segment
-        # lane = rand(filter(l->l != lanetag.lane, 1:params.lanes))
+        lane = try
+            rand(filter(l->l != lanetag.lane, 1:params.lanes))
+        catch
+            1
+        end
+    elseif params.both
         lane = rand(1:params.lanes)
-        lanetag = LaneTag(seg, lane)
     end
+    lanetag = LaneTag(seg, lane)
+
     veh = get_by_id(ego, EGO_ID)
 
     scene, models, colours = populate_others(params, roadway, params.ego_pos)

@@ -13,6 +13,7 @@ mutable struct EnvParams <: AbstractParams
     room::Float64 # room between cars
     stadium::Bool # stadium roadway
     change::Bool # change to different lane
+    both::Bool # change or follow
     fov::Int # longitudinal field-of-view
 
     ego_pos::Int # location of egovehicle, between [1, cars]

@@ -39,14 +39,23 @@ function dict_to_simparams(params::Dict)
     room = CAR_LENGTH * 2.0
     stadium = get(params, "stadium", false)
     change = get(params, "change", false)
+    both = get(params, "both", false)
     fov = get(params, "fov", 50)
 
-    ego_pos = rand(1:cars)
     v_des = get(params, "v_des", 15.0)
     ego_dim = get(params, "ego_dim", 8)
     other_dim = get(params, "other_dim", 7)
-    o_dim = ego_dim + (6 * other_dim) * (cars > 1)
     occupancy = get(params, "occupancy", false)
+
+    if lanes == 1
+        o_dim = ego_dim + (2 * other_dim) * (cars > 1)
+    elseif lanes == 2
+        ego_pos = rand(1:2:cars)
+        o_dim = ego_dim + (4 * other_dim) * (cars > 1)
+    else
+        ego_pos = rand(1:cars)
+        o_dim = ego_dim + (6 * other_dim) * (cars > 1)
+    end
 
     j_cost = get(params, "j_cost", 1.0)
     δdot_cost = get(params, "d_cost", 10.0)
@@ -59,8 +68,8 @@ function dict_to_simparams(params::Dict)
     costs = costs ./ sum(costs)
     j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost = costs
 
-    EnvParams(length, lanes, cars, dt, max_ticks, room, stadium, change, fov,
-                ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
+    EnvParams(length, lanes, cars, dt, max_ticks, room, stadium, change, both,
+                fov, ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
                 j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost)
 end
 
@@ -230,7 +239,14 @@ function get_neighbour_featurevecs(env::EnvState)
     rear_L = get_featurevec(env, rear_L, ego_lane.tag, lane=1, rear=true)
     rear_R = get_featurevec(env, rear_R, ego_lane.tag, lane=3, rear=true)
 
-    features = vcat(fore_M, fore_L, fore_R, rear_M, rear_L, rear_R)
+    if env.params.lanes == 1
+        features = vcat(fore_M, rear_M)
+    elseif env.params.lanes == 2
+        features = vcat(fore_M, fore_L, rear_M, rear_L)
+    else
+        features = vcat(fore_M, fore_L, fore_R, rear_M, rear_L, rear_R)
+    end
+
     features
 end
 
