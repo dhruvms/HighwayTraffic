@@ -57,7 +57,7 @@ action_space(params::EnvParams) = ([-4.0, -0.4], [2.0, 0.4])
 function observation_space(params::EnvParams)
     if params.occupancy
         fov = 2 * params.fov + 1
-        return (-Inf, Inf, (4, fov, 3))
+        return (-Inf, Inf, (5, fov, 3))
     else
         return (-Inf, Inf, (params.o_dim,))
     end

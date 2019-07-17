@@ -117,10 +117,10 @@ def main():
             # torch.clamp_(action[:, 1], action_space_lo[1], action_space_hi[1])
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
-            # ax[0].imshow(obs.data.cpu().numpy()[0, -4, :, :])
-            # ax[1].imshow(obs.data.cpu().numpy()[0, -3, :, :])
-            # ax[2].imshow(obs.data.cpu().numpy()[0, -2, :, :])
-            # ax[3].imshow(obs.data.cpu().numpy()[0, -1, :, :])
+            # ax[0].imshow(obs.data.cpu().numpy()[0, -5, :, :])
+            # ax[1].imshow(obs.data.cpu().numpy()[0, -4, :, :])
+            # ax[2].imshow(obs.data.cpu().numpy()[0, -3, :, :])
+            # ax[3].imshow(obs.data.cpu().numpy()[0, -2, :, :])
             # plt.suptitle("Action: ({:.3f}, {:.3f}), Reward: {:.3f}".format(action[0][0], action[0][1], reward[0][0]))
             # plt.pause(0.00001)
 

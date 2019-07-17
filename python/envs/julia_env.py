@@ -12,7 +12,7 @@ class JuliaEnv(gym.Env):
                  # initialization
                  param_dict,
                  ):
-        print("[PyINFO] Starting Julia REPL and include environment file.")
+        print("[Py-INFO] Starting Julia REPL and include environment file.")
         # Load in functions
         self.j = julia.Julia()
         self.j.eval("include(\"" + JULIA_ENV_DICT[env_name] + "\")")

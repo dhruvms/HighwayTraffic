@@ -29,6 +29,8 @@ class PPO():
         self.use_clipped_value_loss = use_clipped_value_loss
 
         self.optimizer = optim.Adam(actor_critic.parameters(), lr=lr, eps=eps)
+        numparams = sum(p.numel() for p in actor_critic.parameters() if p.requires_grad)
+        print("[Py-INFO] Trainable parameters in network = ", numparams)
 
     def update(self, rollouts):
         advantages = rollouts.returns[:-1] - rollouts.value_preds[:-1]

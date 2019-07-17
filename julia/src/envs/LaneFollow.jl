@@ -51,25 +51,7 @@ function make_env(params::EnvParams)
 end
 
 function observe(env::EnvState)
-    # ego = env.scene[findfirst(EGO_ID, env.scene)]
-    ego = get_by_id(env.ego, EGO_ID)
-
-    lane = get_lane(env.roadway, ego.state.state)
-    in_lane = lane.tag.lane == env.init_lane.lane ? 1 : 0
-
-    true_lanetag = LaneTag(lane.tag.segment, env.init_lane.lane)
-    ego_proj = Frenet(ego.state.state.posG,
-                        env.roadway[true_lanetag], env.roadway)
-    t = ego_proj.t # displacement from lane
-    ϕ = ego_proj.ϕ # angle relative to lane
-
-    v = ego.state.state.v
-    a = ego.state.a
-    δ = ego.state.δ
-    action = reshape(env.action_state, 4, :)'[end, 1:2]
-
-    # TODO: normalise?
-    ego_o = [in_lane, t, ϕ, v, a, δ, action[1], action[2]]
+    ego_o = get_ego_features(env)
     if env.params.cars - 1 > 0
         other_o = get_neighbour_featurevecs(env)
         o = vcat(ego_o, other_o)
@@ -80,12 +62,15 @@ function observe(env::EnvState)
 end
 
 function observe_occupancy(env::EnvState)
-    ego = get_by_id(env.ego, EGO_ID)
-    lane = get_lane(env.roadway, ego.state.state)
-    in_lane = lane.tag.lane == env.init_lane.lane ? 1 : 0
-
+    ego_o = get_ego_features(env)
     o = get_occupancy_image(env)
-    return o, in_lane
+
+    fov = 2 * env.params.fov + 1
+    ego_mat = zeros(fov, 3)
+    ego_mat[1:env.params.ego_dim, 1] = ego_o
+    o = cat(o, ego_mat, dims=3)
+
+    return o, ego_o[1]
 end
 
 function burn_in_sim!(env::EnvState; steps::Int=0)

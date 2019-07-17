@@ -252,6 +252,30 @@ function get_neighbour_featurevecs(env::EnvState)
     features
 end
 
+function get_ego_features(env::EnvState)
+    # ego = env.scene[findfirst(EGO_ID, env.scene)]
+    ego = get_by_id(env.ego, EGO_ID)
+
+    lane = get_lane(env.roadway, ego.state.state)
+    in_lane = lane.tag.lane == env.init_lane.lane ? 1 : 0
+
+    true_lanetag = LaneTag(lane.tag.segment, env.init_lane.lane)
+    ego_proj = Frenet(ego.state.state.posG,
+                        env.roadway[true_lanetag], env.roadway)
+    t = ego_proj.t # displacement from lane
+    ϕ = ego_proj.ϕ # angle relative to lane
+
+    v = ego.state.state.v
+    a = ego.state.a
+    δ = ego.state.δ
+    action = reshape(env.action_state, 4, :)'[end, 1:2]
+
+    # TODO: normalise?
+    ego_o = [in_lane, t, ϕ, v, a, δ, action[1], action[2]]
+
+    ego_o
+end
+
 function relative_lane(l_ego::Int, l_other::Int)
     if l_ego == l_other
         return 2
@@ -260,6 +284,17 @@ function relative_lane(l_ego::Int, l_other::Int)
     else
         return 1
     end
+end
+
+function map_to_range(in::Float64, in_start::Float64, in_end::Float64,
+                                        out_start::Float64, out_end::Float64)
+    out = out_start +
+            ((out_end - out_start) / (in_end - in_start)) * (in - in_start)
+    out
+end
+
+function map_to_01(in::Float64, in_start::Float64, in_end::Float64)
+    return map_to_range(in, in_start, in_end, 0.0, 1.0)
 end
 
 function get_occupancy_image(env::EnvState)
@@ -284,8 +319,8 @@ function get_occupancy_image(env::EnvState)
             Δlane = abs(ego_lane.tag.lane - veh.state.posF.roadind.tag.lane)
             if abs(Δs) < env.params.fov && Δlane ≤ 1 # veh is in range
                 Δv = veh.state.v - ego.state.state.v
-                Δt = veh_proj.t - ego.state.state.posF.t
-                Δϕ = WrapPosNegPi(veh_proj.ϕ - ego.state.state.posF.ϕ)
+                Δt = abs(veh_proj.t - ego.state.state.posF.t)
+                Δϕ = Wrap2Pi(veh_proj.ϕ - ego.state.state.posF.ϕ)
                 lane = relative_lane(ego_lane.tag.lane,
                                         veh.state.posF.roadind.tag.lane)
 
@@ -302,9 +337,10 @@ function get_occupancy_image(env::EnvState)
                 end
 
                 occupancy[veh_rows, lane] .= 1
-                rel_vel[veh_rows, lane] .= Δv
-                rel_lat_disp[veh_rows, lane] .= Δt
-                rel_heading[veh_rows, lane] .= Δϕ
+                rel_vel[veh_rows, lane] .= map_to_01(Δv, -env.params.v_des,
+                                                            env.params.v_des)
+                rel_lat_disp[veh_rows, lane] .= Δt / DEFAULT_LANE_WIDTH
+                rel_heading[veh_rows, lane] .= Δϕ / 2π
             end
         end
     end

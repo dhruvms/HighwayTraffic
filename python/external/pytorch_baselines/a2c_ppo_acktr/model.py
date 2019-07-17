@@ -176,17 +176,33 @@ class NNBase(nn.Module):
 
 class CNNBase(NNBase):
     def __init__(self, num_inputs, recurrent=False, hidden_size=64,
-                        other_cars=None, ego_dim=None):
+                        other_cars=None, ego_dim=None, nstack=4):
         super(CNNBase, self).__init__(recurrent, hidden_size, hidden_size)
 
         init_ = lambda m: init(m, nn.init.xavier_uniform_, lambda x: nn.init.
                                constant_(x, 0), nn.init.calculate_gain('relu'))
 
-        self.main = nn.Sequential(
-            init_(nn.Conv2d(num_inputs, 32, (4, 3), stride=(2, 1))), nn.ReLU(),
+        self.channels = (num_inputs//nstack) - 1
+        self.ego_channels = np.arange(nstack) * (self.channels + 1) \
+                                + self.channels
+        self.data_channels = list(np.setdiff1d(np.arange(num_inputs),
+                                                self.ego_channels))
+        self.ego_channels = list(self.ego_channels)
+        self.ego_dim = ego_dim
+
+        self.occupancy = nn.Sequential(
+            init_(nn.Conv2d(self.channels*nstack, 32, (4, 3), stride=(2, 1))), nn.ReLU(),
             # init_(nn.Conv2d(32, 64, (3, 1), stride=(2, 1))), nn.ReLU(),
             init_(nn.Conv2d(32, 64, (3, 1), stride=(2, 1))), nn.ReLU(), Flatten(),
-            init_(nn.Linear(64 * 24 * 1, hidden_size)), nn.ReLU())
+            init_(nn.Linear(64 * 24 * 1, 256)), nn.ReLU(),
+            init_(nn.Linear(256, hidden_size)), nn.ReLU())
+        self.ego = nn.Sequential(
+            init_(nn.Conv1d(nstack, max(nstack//2, 1), 2)), nn.ReLU(), Flatten(),
+            init_(nn.Linear(max(nstack//2, 1) * (self.ego_dim-1), self.ego_dim)), nn.ReLU())
+        self.main = nn.Sequential(
+            init_(nn.Linear(hidden_size + self.ego_dim, 128)), nn.ReLU(),
+            init_(nn.Linear(128, hidden_size)), nn.ReLU())
+
 
         init_ = lambda m: init(m, nn.init.xavier_uniform_, lambda x: nn.init.
                                constant_(x, 0))
@@ -196,7 +212,12 @@ class CNNBase(NNBase):
         self.train()
 
     def forward(self, inputs, rnn_hxs, masks):
-        x = self.main(inputs)
+        ego_vec = inputs[:, self.ego_channels, :self.ego_dim, 0]
+        inputs = inputs[:, self.data_channels, :, :]
+        others = self.occupancy(inputs)
+        ego = self.ego(ego_vec)
+        feats = torch.cat([others, ego], 1)
+        x = self.main(feats)
 
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
