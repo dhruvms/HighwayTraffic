@@ -23,8 +23,9 @@ function make_env(params::EnvParams)
     end
 
     ego, lanetag = get_initial_egostate(params, roadway)
+    seg = lanetag.segment
+    lane = lanetag.lane
     if params.change
-        seg = lanetag.segment
         lane = try
             rand(filter(l->l != lanetag.lane, 1:params.lanes))
         catch

@@ -47,13 +47,14 @@ function dict_to_simparams(params::Dict)
     other_dim = get(params, "other_dim", 7)
     occupancy = get(params, "occupancy", false)
 
+    ego_pos = rand(1:cars)
+    o_dim = nothing
     if lanes == 1
         o_dim = ego_dim + (2 * other_dim) * (cars > 1)
     elseif lanes == 2
         ego_pos = rand(1:2:cars)
         o_dim = ego_dim + (4 * other_dim) * (cars > 1)
     else
-        ego_pos = rand(1:cars)
         o_dim = ego_dim + (6 * other_dim) * (cars > 1)
     end
 
@@ -239,6 +240,7 @@ function get_neighbour_featurevecs(env::EnvState)
     rear_L = get_featurevec(env, rear_L, ego_lane.tag, lane=1, rear=true)
     rear_R = get_featurevec(env, rear_R, ego_lane.tag, lane=3, rear=true)
 
+    features = nothing
     if env.params.lanes == 1
         features = vcat(fore_M, rear_M)
     elseif env.params.lanes == 2
