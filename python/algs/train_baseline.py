@@ -121,6 +121,7 @@ def main():
             # ax[1].imshow(obs.data.cpu().numpy()[0, -3, :, :])
             # ax[2].imshow(obs.data.cpu().numpy()[0, -2, :, :])
             # ax[3].imshow(obs.data.cpu().numpy()[0, -1, :, :])
+            # plt.suptitle("Action: ({:.3f}, {:.3f}), Reward: {:.3f}".format(action[0][0], action[0][1], reward[0][0]))
             # plt.pause(0.00001)
 
             for info in infos:

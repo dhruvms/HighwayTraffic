@@ -128,8 +128,8 @@ function is_terminal(env::EnvState; init::Bool=false)
     ego = get_by_id(env.ego, EGO_ID)
     road_proj = proj(ego.state.state.posG, env.roadway)
 
-    # done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
-    # final_r -= done * 5.0
+    done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
+    final_r -= done * 5.0
 
     done = done || (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) # off roadway
     done = done || is_crash(env, init=init)
@@ -156,12 +156,12 @@ function reward(env::EnvState, action::Vector{Float32})
     reward = 1.0
     # action cost
     action_lims = action_space(env.params)
-    reward -= env.params.j_cost * abs(action[1]) +
+    reward -= env.params.j_cost * (abs(action[1]) +
                 20.0 * (action[1] < action_lims[1][1] ||
-                                                action[1] > action_lims[2][1])
-    reward -= env.params.δdot_cost * abs(action[2]) +
+                                                action[1] > action_lims[2][1]))
+    reward -= env.params.δdot_cost * (abs(action[2]) +
                 20.0 * (action[2] < action_lims[1][2] ||
-                                    action[2] > action_lims[2][2])
+                                    action[2] > action_lims[2][2]))
     reward -= env.params.a_cost * abs(ego.state.a)
     # desired velocity cost
     reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
@@ -247,13 +247,13 @@ function step!(env::EnvState, action::Vector{Float32})
 
     terminal, final_r = is_terminal(env)
 
-    r -= 20.0 * neg_v
+    r -= 20.0 * env.params.v_cost * neg_v
 
     if Bool(terminal)
         r += final_r
     end
     if Bool(in_lane)
-        r += 10.0
+        r += 1.0
     end
 
     ego = get_by_id(env.ego, EGO_ID)

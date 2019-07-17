@@ -175,20 +175,20 @@ class NNBase(nn.Module):
 
 
 class CNNBase(NNBase):
-    def __init__(self, num_inputs, recurrent=False, hidden_size=512,
+    def __init__(self, num_inputs, recurrent=False, hidden_size=64,
                         other_cars=None, ego_dim=None):
         super(CNNBase, self).__init__(recurrent, hidden_size, hidden_size)
 
-        init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
+        init_ = lambda m: init(m, nn.init.xavier_uniform_, lambda x: nn.init.
                                constant_(x, 0), nn.init.calculate_gain('relu'))
 
         self.main = nn.Sequential(
-            init_(nn.Conv2d(num_inputs, 32, (4, 1), stride=(2, 1))), nn.ReLU(),
-            init_(nn.Conv2d(32, 64, (3, 1), stride=(2, 1))), nn.ReLU(),
-            init_(nn.Conv2d(64, 32, (2, 1), stride=1)), nn.ReLU(), Flatten(),
-            init_(nn.Linear(32 * 23 * 3, hidden_size)), nn.ReLU())
+            init_(nn.Conv2d(num_inputs, 32, (4, 3), stride=(2, 1))), nn.ReLU(),
+            # init_(nn.Conv2d(32, 64, (3, 1), stride=(2, 1))), nn.ReLU(),
+            init_(nn.Conv2d(32, 64, (3, 1), stride=(2, 1))), nn.ReLU(), Flatten(),
+            init_(nn.Linear(64 * 24 * 1, hidden_size)), nn.ReLU())
 
-        init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
+        init_ = lambda m: init(m, nn.init.xavier_uniform_, lambda x: nn.init.
                                constant_(x, 0))
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))

@@ -22,7 +22,7 @@ def get_args():
     parser.add_argument(
         '--gamma',
         type=float,
-        default=0.9,
+        default=0.99,
         help='discount factor for rewards (default: 0.99)')
     parser.add_argument(
         '--use-gae',

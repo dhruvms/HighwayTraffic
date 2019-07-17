@@ -266,6 +266,9 @@ function get_occupancy_image(env::EnvState)
     fov = 2 * env.params.fov + 1
     ego = get_by_id(env.ego, EGO_ID)
     ego_lane = get_lane(env.roadway, ego.state.state)
+    ego_r_start = Int(env.params.fov + 2 - ego.def.length/2.0)
+    ego_r_end = Int(env.params.fov + 1 + ego.def.length/2.0)
+    ego_rows = ego_r_start:ego_r_end
 
     occupancy = zeros(fov, 3)
     rel_vel = zeros(fov, 3)
@@ -275,15 +278,16 @@ function get_occupancy_image(env::EnvState)
     for (i,veh) in enumerate(env.scene)
         if veh.id != EGO_ID
             veh_proj = Frenet(veh.state.posG,
-                                env.roadway[ego.state.state.posF.roadind.tag],
+                                env.roadway[ego_lane.tag],
                                 env.roadway)
             Δs = veh_proj.s - ego.state.state.posF.s
-            if abs(Δs) < env.params.fov # veh is in range
+            Δlane = abs(ego_lane.tag.lane - veh.state.posF.roadind.tag.lane)
+            if abs(Δs) < env.params.fov && Δlane ≤ 1 # veh is in range
                 Δv = veh.state.v - ego.state.state.v
                 Δt = veh_proj.t - ego.state.state.posF.t
                 Δϕ = WrapPosNegPi(veh_proj.ϕ - ego.state.state.posF.ϕ)
-                lane = relative_lane(veh.state.posF.roadind.tag.lane,
-                                        ego.state.state.posF.roadind.tag.lane)
+                lane = relative_lane(ego_lane.tag.lane,
+                                        veh.state.posF.roadind.tag.lane)
 
                 if Δs >= 0
                     veh_row = env.params.fov + 1 - floor(Δs)
@@ -304,6 +308,11 @@ function get_occupancy_image(env::EnvState)
             end
         end
     end
+
+    occupancy[ego_rows, 2] .= 1
+    rel_vel[ego_rows, 2] .= ego.state.state.v
+    rel_lat_disp[ego_rows, 2] .= ego.state.state.posF.t
+    rel_heading[ego_rows, 2] .= ego.state.state.posF.ϕ
 
     # vcat(occupancy, rel_vel, rel_lat_disp, rel_heading)
     result = cat(occupancy, rel_vel, rel_lat_disp, rel_heading, dims=3)

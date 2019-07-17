@@ -90,3 +90,34 @@ class Critic(nn.Module):
         else:
             state_action = torch.cat([state, action], 1)
             return self.net(state_action)
+
+class Flatten(nn.Module):
+    def forward(self, x):
+        return x.view(x.size(0), -1)
+
+class ActorCriticCNN(nn.Module):
+    def __init__(self, state_dim, action_dim, action_lim, hidden_size=64):
+        super().__init__()
+
+        device = torch.device("cuda:0" if torch.cuda.is_available()
+                                        else "cpu")
+
+        num_inputs = state_dim[0]
+        self.net = nn.Sequential(
+                nn.Conv2d(num_inputs, 32, (4, 3), stride=(2, 1)), nn.ReLU(),
+                nn.Conv2d(32, 64, (3, 1), stride=(2, 1)), nn.ReLU(), Flatten(),
+                nn.Linear(64 * 24 * 1, hidden_size), nn.ReLU()
+                )
+        self.actor = nn.Linear(hidden_size, action_dim[0])
+        self.action_lim = torch.FloatTensor(action_lim).to(device)
+
+        self.critic = nn.Linear(hidden_size + action_dim[0], 1)
+
+    def forward(self, obs, target_actions=None):
+        feats = self.net(obs)
+        action = torch.tanh(self.actor(feats)) * self.action_lim
+        if target_actions is None:
+            feats_action = torch.cat([feats, action], 1)
+        else:
+            feats_action = torch.cat([feats, target_actions], 1)
+        return action, self.critic(feats_action)
