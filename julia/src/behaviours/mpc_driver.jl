@@ -106,27 +106,32 @@ end
 							mΔ::Float64)
 Select target lane based on available room in right, middle and left lanes
 """
-function lane_tag_modifier(right::Bool, left::Bool, rΔ::Float64, lΔ::Float64,
-							mΔ::Float64)
-	if left && lΔ > mΔ + CAR_LENGTH * 2.0
+function lane_tag_modifier(right::Bool, left::Bool,
+						rΔ_fore::Float64, lΔ_fore::Float64, mΔ_fore::Float64,
+						rΔ_rear::Float64, lΔ_rear::Float64, mΔ_rear::Float64)
+	if left &&
+		lΔ_fore > mΔ_fore + CAR_LENGTH * 2.0 &&
+		lΔ_rear > mΔ_rear + CAR_LENGTH * 2.0
 		if right
-			if lΔ > rΔ + CAR_LENGTH * 2.0
-				return 1, lΔ
+			if lΔ_fore > rΔ_fore + CAR_LENGTH * 2.0 &&
+				lΔ_rear > rΔ_rear + CAR_LENGTH * 2.0
+				return 1, min(lΔ_fore, lΔ_rear)
 			end
 		end
-		return 1, lΔ
 	end
 
-	if right && rΔ > mΔ + CAR_LENGTH * 2.0
+	if right &&
+		rΔ_fore > mΔ_fore + CAR_LENGTH * 2.0 &&
+		rΔ_rear > mΔ_rear + CAR_LENGTH * 2.0
 		if left
-			if rΔ > lΔ + CAR_LENGTH * 2.0
-				return -1, rΔ
+			if rΔ_fore > lΔ_fore + CAR_LENGTH * 2.0 &&
+				rΔ_rear > lΔ_rear + CAR_LENGTH * 2.0
+				return -1, min(rΔ_fore, rΔ_rear)
 			end
 		end
-		return -1, rΔ
 	end
 
-	return 0, mΔ
+	return 0, min(mΔ_fore, mΔ_rear)
 end
 
 """
@@ -135,7 +140,8 @@ end
 2. Pick target state in the egovehicle's Frenet coordinate system
 3. Solve MPC optimisation to get (and execute) first control input
 """
-function AutomotiveDrivingModels.observe!(driver::MPCDriver, scene::Scene, roadway::Roadway, egoid::Int)
+function AutomotiveDrivingModels.observe!(
+				driver::MPCDriver, scene::Scene, roadway::Roadway, egoid::Int)
     update!(driver.rec, scene)
 
     self_idx = findfirst(egoid, scene)
@@ -143,14 +149,31 @@ function AutomotiveDrivingModels.observe!(driver::MPCDriver, scene::Scene, roadw
 	ego_lane = roadway[ego_state.posF.roadind.tag]
 
 	# Step 1
-	left_exists = convert(Float64, get(N_LANE_LEFT, driver.rec, roadway, self_idx)) > 0
-    right_exists = convert(Float64, get(N_LANE_RIGHT, driver.rec, roadway, self_idx)) > 0
-	fore_M = get_neighbor_fore_along_lane(scene, self_idx, roadway, VehicleTargetPointFront(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=driver.lookahead)
-    fore_L = get_neighbor_fore_along_left_lane(scene, self_idx, roadway, VehicleTargetPointRear(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=driver.lookahead)
-    fore_R = get_neighbor_fore_along_right_lane(scene, self_idx, roadway, VehicleTargetPointRear(), VehicleTargetPointRear(), VehicleTargetPointFront(), max_distance_fore=driver.lookahead)
+	left_exists = n_lanes_left(ego_lane, roadway) > 0
+    right_exists = n_lanes_right(ego_lane, roadway) > 0
+	fore_M = get_neighbor_fore_along_lane(scene, self_idx, roadway,
+                VehicleTargetPointRear(), VehicleTargetPointRear(),
+                VehicleTargetPointRear(), max_distance_fore=driver.lookahead)
+    fore_L = get_neighbor_fore_along_left_lane(scene, self_idx, roadway,
+                VehicleTargetPointRear(), VehicleTargetPointRear(),
+                VehicleTargetPointRear(), max_distance_fore=driver.lookahead)
+    fore_R = get_neighbor_fore_along_right_lane(scene, self_idx, roadway,
+                VehicleTargetPointRear(), VehicleTargetPointRear(),
+                VehicleTargetPointRear(), max_distance_fore=driver.lookahead)
+    rear_M = get_neighbor_rear_along_lane(scene, self_idx, roadway,
+                VehicleTargetPointFront(), VehicleTargetPointFront(),
+                VehicleTargetPointFront(), max_distance_rear=driver.lookahead)
+    rear_L = get_neighbor_rear_along_left_lane(scene, self_idx, roadway,
+                VehicleTargetPointFront(), VehicleTargetPointFront(),
+                VehicleTargetPointFront(), max_distance_rear=driver.lookahead)
+    rear_R = get_neighbor_rear_along_right_lane(scene, self_idx, roadway,
+                VehicleTargetPointFront(), VehicleTargetPointFront(),
+                VehicleTargetPointFront(), max_distance_rear=driver.lookahead)
 
 	# Step 2
-	lane_choice, headway = lane_tag_modifier(right_exists, left_exists, fore_R.Δs, fore_L.Δs, fore_M.Δs)
+	lane_choice, headway = lane_tag_modifier(right_exists, left_exists,
+											fore_R.Δs, fore_L.Δs, fore_M.Δs,
+											rear_R.Δs, rear_L.Δs, rear_M.Δs)
 	headway = min(headway/2.0, driver.lookahead)
 	target_lane = roadway[LaneTag(ego_lane.tag.segment, ego_lane.tag.lane + lane_choice)]
 	ego_target = Frenet(ego_state.posG, target_lane, roadway) # egostate projected onto target lane
@@ -158,9 +181,9 @@ function AutomotiveDrivingModels.observe!(driver::MPCDriver, scene::Scene, roadw
 	target_pos = Frenet(target_roadind, roadway) # Frenet position on target lane after moving
 
 	target = MPCState()
-	target.y = lane_choice * target_lane.width - ego_state.posF.t
+	target.y = lane_choice * target_lane.width + ego_state.posF.t
 	target.θ = 0.0
-	target.x = min(headway, driver.lookahead)
+	target.x = headway/2.0
 	target.v = 0.0
 	target.β = 0.0
 

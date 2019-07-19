@@ -80,4 +80,4 @@ for episode in range(1, args.eval_episodes+1):
     eval_reward += ep_reward
 
 avg_reward = eval_reward / args.eval_episodes
-print('EVAL: Avg reward = %f | Solved = %d' % (avg_reward, solved))
+print('EVAL: Avg reward = %f | Unsolved = %d' % (avg_reward, solved))

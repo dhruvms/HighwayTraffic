@@ -1,3 +1,5 @@
+using Random
+
 """
     get_lane(roadway::Roadway, vehicle::Vehicle)
     get_lane(roadway::Roadway, vehicle::VehicleState)
@@ -31,6 +33,9 @@ function distance_from_end(params::EnvParams, veh::Agent)
 end
 
 function dict_to_simparams(params::Dict)
+    seed = get(params, "seed", 68845)
+    # Random.seed!(seed)
+
     length = get(params, "length", 1000.0)
     lanes = get(params, "lanes", 3)
     cars = get(params, "cars", 30)
@@ -41,6 +46,8 @@ function dict_to_simparams(params::Dict)
     change = get(params, "change", false)
     both = get(params, "both", false)
     fov = get(params, "fov", 50)
+    beta = get(params, "beta", false)
+    clamp = get(params, "clamp_in_sim", false)
 
     v_des = get(params, "v_des", 15.0)
     ego_dim = get(params, "ego_dim", 8)
@@ -52,7 +59,9 @@ function dict_to_simparams(params::Dict)
     if lanes == 1
         o_dim = ego_dim + (2 * other_dim) * (cars > 1)
     elseif lanes == 2
-        ego_pos = rand(1:2:cars)
+        if change
+            ego_pos = rand(1:2:cars)
+        end
         o_dim = ego_dim + (4 * other_dim) * (cars > 1)
     else
         o_dim = ego_dim + (6 * other_dim) * (cars > 1)
@@ -70,7 +79,8 @@ function dict_to_simparams(params::Dict)
     j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost = costs
 
     EnvParams(length, lanes, cars, dt, max_ticks, room, stadium, change, both,
-                fov, ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
+                fov, beta, clamp,
+                ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
                 j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost)
 end
 
@@ -144,7 +154,8 @@ function populate_others(params::P, roadway::Roadway{Float64},
             end
         elseif type >= 0.0 && type <= 0.5
             models[v_num] = Tim2DDriver(params.dt,
-                                    mlon=IntelligentDriverModel(ΔT=params.dt))
+                                    mlon=IntelligentDriverModel(ΔT=params.dt),
+                                    mlat=ProportionalLaneTracker())
             carcolours[v_num] = try
                 MONOKAI["color4"]
             catch

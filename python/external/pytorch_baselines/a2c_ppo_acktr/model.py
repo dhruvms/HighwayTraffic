@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from a2c_ppo_acktr.distributions import Bernoulli, Categorical, DiagGaussian
+from a2c_ppo_acktr.distributions import Bernoulli, Categorical, DiagGaussian, BetaDist
 from a2c_ppo_acktr.utils import init
 
 
@@ -13,7 +13,9 @@ class Flatten(nn.Module):
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_shape, action_space, other_cars=False, ego_dim=None, base=None, base_kwargs=None):
+    def __init__(self, obs_shape, action_space,
+        other_cars=False, ego_dim=None, beta_dist=False,
+        base=None, base_kwargs=None):
         super(Policy, self).__init__()
         if base_kwargs is None:
             base_kwargs = {}
@@ -32,7 +34,11 @@ class Policy(nn.Module):
             self.dist = Categorical(self.base.output_size, num_outputs)
         elif action_space.__class__.__name__ == "Box":
             num_outputs = action_space.shape[0]
-            self.dist = DiagGaussian(self.base.output_size, num_outputs)
+            self.beta_dist = beta_dist
+            if self.beta_dist:
+                self.dist = BetaDist(self.base.output_size, num_outputs)
+            else:
+                self.dist = DiagGaussian(self.base.output_size, num_outputs)
             self.hi_lim = action_space.high
             self.lo_lim = action_space.low
         elif action_space.__class__.__name__ == "MultiBinary":
@@ -176,7 +182,7 @@ class NNBase(nn.Module):
 
 class CNNBase(NNBase):
     def __init__(self, num_inputs, recurrent=False, hidden_size=64,
-                        other_cars=None, ego_dim=None, nstack=4):
+                        other_cars=None, ego_dim=None, nstack=1):
         super(CNNBase, self).__init__(recurrent, hidden_size, hidden_size)
 
         init_ = lambda m: init(m, nn.init.xavier_uniform_, lambda x: nn.init.

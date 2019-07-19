@@ -9,6 +9,7 @@ class PPO():
                  clip_param,
                  ppo_epoch,
                  num_mini_batch,
+                 action_loss_coef,
                  value_loss_coef,
                  entropy_coef,
                  lr=None,
@@ -22,6 +23,7 @@ class PPO():
         self.ppo_epoch = ppo_epoch
         self.num_mini_batch = num_mini_batch
 
+        self.action_loss_coef = action_loss_coef
         self.value_loss_coef = value_loss_coef
         self.entropy_coef = entropy_coef
 
@@ -29,8 +31,12 @@ class PPO():
         self.use_clipped_value_loss = use_clipped_value_loss
 
         self.optimizer = optim.Adam(actor_critic.parameters(), lr=lr, eps=eps)
-        numparams = sum(p.numel() for p in actor_critic.parameters() if p.requires_grad)
-        print("[Py-INFO] Trainable parameters in network = ", numparams)
+        numparams = sum(p.numel() for p in actor_critic.parameters() \
+                                                            if p.requires_grad)
+        print("[Py-INFO] Trainable parameters in network = {}"\
+                        .format(numparams))
+        print("[Py-INFO] Value loss coeff = {:.3f}, Action loss coeff = {:.3f}"\
+                        .format(self.value_loss_coef, self.action_loss_coef))
 
     def update(self, rollouts):
         advantages = rollouts.returns[:-1] - rollouts.value_preds[:-1]
@@ -78,8 +84,9 @@ class PPO():
                     value_loss = 0.5 * (return_batch - values).pow(2).mean()
 
                 self.optimizer.zero_grad()
-                (value_loss * self.value_loss_coef + action_loss -
-                 dist_entropy * self.entropy_coef).backward()
+                (value_loss * self.value_loss_coef +
+                    action_loss * self.action_loss_coef -
+                    dist_entropy * self.entropy_coef).backward()
                 nn.utils.clip_grad_norm_(self.actor_critic.parameters(),
                                          self.max_grad_norm)
                 self.optimizer.step()

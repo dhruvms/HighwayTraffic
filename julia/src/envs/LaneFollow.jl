@@ -42,7 +42,7 @@ function make_env(params::EnvParams)
     push!(scene, Vehicle(veh))
     colours[EGO_ID] = COLOR_CAR_EGO
 
-    action_state = [0.0f0, 0.0f0, veh.state.a, veh.state.δ]
+    action_state = [0.0, 0.0, veh.state.a, veh.state.δ]
 
     rec = SceneRecord(params.max_ticks, params.dt)
 
@@ -55,10 +55,10 @@ function observe(env::EnvState)
     if env.params.cars - 1 > 0
         other_o = get_neighbour_featurevecs(env)
         o = vcat(ego_o, other_o)
-        return o, in_lane
+        return o, ego_o[1]
     end
 
-    return ego_o, in_lane
+    return ego_o, ego_o[1]
 end
 
 function observe_occupancy(env::EnvState)
@@ -129,7 +129,7 @@ function is_terminal(env::EnvState; init::Bool=false)
     done, final_r
 end
 
-function reward(env::EnvState, action::Vector{Float32})
+function reward(env::EnvState, action::Vector{Float64})
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego = get_by_id(env.ego, EGO_ID)
     lane = get_lane(env.roadway, ego.state.state)
@@ -141,12 +141,8 @@ function reward(env::EnvState, action::Vector{Float32})
     reward = 1.0
     # action cost
     action_lims = action_space(env.params)
-    reward -= env.params.j_cost * (abs(action[1]) +
-                20.0 * (action[1] < action_lims[1][1] ||
-                                                action[1] > action_lims[2][1]))
-    reward -= env.params.δdot_cost * (abs(action[2]) +
-                20.0 * (action[2] < action_lims[1][2] ||
-                                    action[2] > action_lims[2][2]))
+    reward -= env.params.j_cost * abs(action[1])
+    reward -= env.params.δdot_cost * abs(action[2])
     reward -= env.params.a_cost * abs(ego.state.a)
     # desired velocity cost
     reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
@@ -162,7 +158,7 @@ function reward(env::EnvState, action::Vector{Float32})
     reward
 end
 
-function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float32},
+function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float64},
                                         actions::Vector{Any}; init::Bool=false)
     ego = get_by_id(env.ego, EGO_ID)
     a = ego.state.a
@@ -213,6 +209,19 @@ function AutomotiveDrivingModels.get_actions!(
 end
 
 function step!(env::EnvState, action::Vector{Float32})
+    action = convert(Vector{Float64}, action)
+    action_lims = action_space(env.params)
+    if env.params.beta
+        action[1] = map_to_range(action[1], 0.0, 1.0,
+                                    action_lims[1][1], action_lims[2][1])
+        action[2] = map_to_range(action[2], 0.0, 1.0,
+                                    action_lims[1][2], action_lims[2][2])
+    end
+    if env.params.clamp
+        action = [clamp(action[1], action_lims[1][1], action_lims[2][1]),
+                    clamp(action[2], action_lims[1][2], action_lims[2][2])]
+    end
+
     other_actions = Array{Any}(undef, length(env.scene))
     get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
 
@@ -232,7 +241,7 @@ function step!(env::EnvState, action::Vector{Float32})
 
     terminal, final_r = is_terminal(env)
 
-    r -= 20.0 * env.params.v_cost * neg_v
+    r -= 100.0 * neg_v
 
     if Bool(terminal)
         r += final_r

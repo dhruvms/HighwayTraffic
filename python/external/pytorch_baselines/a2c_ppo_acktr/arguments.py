@@ -40,6 +40,11 @@ def get_args():
         default=0.01,
         help='entropy term coefficient (default: 0.01)')
     parser.add_argument(
+        '--action-loss-coef',
+        type=float,
+        default=1.0,
+        help='action loss coefficient (default: 1.0)')
+    parser.add_argument(
         '--value-loss-coef',
         type=float,
         default=0.5,
@@ -50,7 +55,7 @@ def get_args():
         default=0.5,
         help='max norm of gradients (default: 0.5)')
     parser.add_argument(
-        '--seed', type=int, default=1, help='random seed (default: 1)')
+        '--seed', type=int, default=68845, help='random seed (default: 68845)')
     parser.add_argument(
         '--cuda-deterministic',
         action='store_true',
@@ -179,6 +184,10 @@ def get_args():
         help='Lane heading deviation cost')
     parser.add_argument('--t-cost', default=10000.0, type=float,
         help='Lane lateral displacement cost')
+    parser.add_argument('--beta-dist', action='store_true', default=False,
+        help='use beta distribution policy')
+    parser.add_argument('--clamp-in-sim', action='store_true', default=False,
+        help='clamp action inside simulator')
 
     parser.add_argument('--max-steps', type=int, default=200,
                         help='Max steps per episode')

@@ -31,6 +31,7 @@ def main():
 
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
+    np.random.seed(args.seed)
 
     if args.cuda and torch.cuda.is_available() and args.cuda_deterministic:
         torch.backends.cudnn.benchmark = False
@@ -55,6 +56,7 @@ def main():
         envs.observation_space.shape,
         envs.action_space,
         other_cars=other_cars, ego_dim=args.ego_dim,
+        beta_dist=args.beta_dist,
         base_kwargs={'recurrent': args.recurrent_policy})
     actor_critic.to(device)
     print(actor_critic)
@@ -74,6 +76,7 @@ def main():
             args.clip_param,
             args.ppo_epoch,
             args.num_mini_batch,
+            args.action_loss_coef,
             args.value_loss_coef,
             args.entropy_coef,
             lr=args.lr,
@@ -121,7 +124,8 @@ def main():
             # ax[1].imshow(obs.data.cpu().numpy()[0, -4, :, :])
             # ax[2].imshow(obs.data.cpu().numpy()[0, -3, :, :])
             # ax[3].imshow(obs.data.cpu().numpy()[0, -2, :, :])
-            # plt.suptitle("Action: ({:.3f}, {:.3f}), Reward: {:.3f}".format(action[0][0], action[0][1], reward[0][0]))
+            # plt.suptitle("Action: ({:.3f}, {:.3f}), Reward: {:.3f}"
+            #                 .format(action[0][0], action[0][1], reward[0][0]))
             # plt.pause(0.00001)
 
             for info in infos:
@@ -165,13 +169,6 @@ def main():
                 actor_critic,
                 getattr(utils.get_vec_normalize(envs), 'ob_rms', None)
             ], os.path.join(save_path, args.env_name + change + cars + ".pt"))
-
-            # if median_ep_reward > best_median:
-            #     best_median = median_ep_reward
-            #     torch.save([
-            #         actor_critic,
-            #         getattr(utils.get_vec_normalize(envs), 'ob_rms', None)
-            #     ], os.path.join(save_path, args.env_name + change + cars + "-best" + ".pt"))
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             total_num_steps = (j + 1) * args.num_processes * args.num_steps

@@ -50,6 +50,18 @@ bernoulli_entropy = FixedBernoulli.entropy
 FixedBernoulli.entropy = lambda self: bernoulli_entropy(self).sum(-1)
 FixedBernoulli.mode = lambda self: torch.gt(self.probs, 0.5).float()
 
+# Beta
+FixedBeta = torch.distributions.Beta
+
+log_prob_beta = FixedBeta.log_prob
+FixedBeta.log_probs = lambda self, actions: log_prob_beta(
+    self, actions).sum(-1, keepdim=True)
+
+beta_entropy = FixedBeta.entropy
+FixedBeta.entropy = lambda self: beta_entropy(self).sum(-1)
+
+FixedBeta.mode = lambda self: (self.concentration1 - 1) / \
+                                (self.concentration1 + self.concentration0 - 2)
 
 class Categorical(nn.Module):
     def __init__(self, num_inputs, num_outputs):
@@ -102,3 +114,22 @@ class Bernoulli(nn.Module):
     def forward(self, x):
         x = self.linear(x)
         return FixedBernoulli(logits=x)
+
+class BetaDist(nn.Module):
+    def __init__(self, num_inputs, num_outputs):
+        super(BetaDist, self).__init__()
+
+        init_ = lambda m: init(m, nn.init.xavier_uniform_, lambda x: nn.init.
+                               constant_(x, 0))
+
+        self.alpha = nn.Sequential(
+                        init_(nn.Linear(num_inputs, num_outputs)),
+                        nn.Softplus())
+        self.beta = nn.Sequential(
+                        init_(nn.Linear(num_inputs, num_outputs)),
+                        nn.Softplus())
+    def forward(self, x):
+        alpha = self.alpha(x) + 1.0
+        beta = self.beta(x) + 1.0
+
+        return FixedBeta(alpha, beta)

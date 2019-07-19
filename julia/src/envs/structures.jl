@@ -15,6 +15,8 @@ mutable struct EnvParams <: AbstractParams
     change::Bool # change to different lane
     both::Bool # change or follow
     fov::Int # longitudinal field-of-view
+    beta::Bool # beta distribution policy in use
+    clamp::Bool # clamp action to limits
 
     ego_pos::Int # location of egovehicle, between [1, cars]
     v_des::Float64 # desired velocity
@@ -40,7 +42,7 @@ mutable struct EnvState <: AbstractEnv
     ego::Frame{Agent}
     # Vector to be reshaped into ?x4 where each row contains commanded action
     # at that (row #) timestep, the egovehicle acceleration and steering angle
-    action_state::Vector{Float32}
+    action_state::Vector{Float64}
     init_lane::LaneTag
 
     other_cars::Dict{Int, DriverModel}
