@@ -46,7 +46,7 @@ function dict_to_simparams(params::Dict)
     change = get(params, "change", false)
     both = get(params, "both", false)
     fov = get(params, "fov", 50)
-    beta = get(params, "beta", false)
+    beta = get(params, "beta_dist", false)
     clamp = get(params, "clamp_in_sim", false)
 
     v_des = get(params, "v_des", 15.0)

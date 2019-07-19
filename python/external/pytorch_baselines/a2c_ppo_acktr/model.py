@@ -68,12 +68,6 @@ class Policy(nn.Module):
         else:
             action = dist.sample()
 
-        # try:
-        #     torch.clamp_(action[:, 0], self.lo_lim[0], self.hi_lim[0])
-        #     torch.clamp_(action[:, 1], self.lo_lim[1], self.hi_lim[1])
-        # except:
-        #     pass
-
         action_log_probs = dist.log_probs(action)
         dist_entropy = dist.entropy().mean()
 
@@ -197,23 +191,23 @@ class CNNBase(NNBase):
         self.ego_dim = ego_dim
 
         self.occupancy = nn.Sequential(
-            init_(nn.Conv2d(self.channels*nstack, 32, (4, 3), stride=(2, 1))), nn.ReLU(),
-            # init_(nn.Conv2d(32, 64, (3, 1), stride=(2, 1))), nn.ReLU(),
-            init_(nn.Conv2d(32, 64, (3, 1), stride=(2, 1))), nn.ReLU(), Flatten(),
-            init_(nn.Linear(64 * 24 * 1, 256)), nn.ReLU(),
-            init_(nn.Linear(256, hidden_size)), nn.ReLU())
+            nn.Conv2d(self.channels*nstack, 32, (4, 2), stride=(2, 1)), nn.ReLU(),
+            nn.Conv2d(32, 64, (3, 1), stride=(2, 1)), nn.ReLU(),
+            nn.Conv2d(64, 64, (3, 2), stride=(2, 1)), nn.ReLU(), Flatten(),
+            nn.Linear(64 * 11 * 1, 256), nn.ReLU(),
+            nn.Linear(256, hidden_size), nn.ReLU())
         self.ego = nn.Sequential(
-            init_(nn.Conv1d(nstack, max(nstack//2, 1), 2)), nn.ReLU(), Flatten(),
-            init_(nn.Linear(max(nstack//2, 1) * (self.ego_dim-1), self.ego_dim)), nn.ReLU())
+            nn.Conv1d(nstack, max(nstack//2, 1), 2), nn.ReLU(), Flatten(),
+            nn.Linear(max(nstack//2, 1) * (self.ego_dim-1), self.ego_dim), nn.ReLU())
         self.main = nn.Sequential(
-            init_(nn.Linear(hidden_size + self.ego_dim, 128)), nn.ReLU(),
-            init_(nn.Linear(128, hidden_size)), nn.ReLU())
+            nn.Linear(hidden_size + self.ego_dim, 128), nn.ReLU(),
+            nn.Linear(128, hidden_size), nn.ReLU())
 
 
         init_ = lambda m: init(m, nn.init.xavier_uniform_, lambda x: nn.init.
                                constant_(x, 0))
 
-        self.critic_linear = init_(nn.Linear(hidden_size, 1))
+        self.critic_linear = nn.Linear(hidden_size, 1)
 
         self.train()
 
@@ -247,26 +241,26 @@ class MLPBase(NNBase):
             self.ego_dim = ego_dim
             self.others_dim = num_inputs-self.ego_dim
             self.other_cars = nn.Sequential(
-                init_(nn.Linear(self.others_dim, 2*hidden_size)), nn.Tanh(),
-                init_(nn.Linear(2*hidden_size, 2*hidden_size)), nn.Tanh())
+                nn.Linear(self.others_dim, 2*hidden_size), nn.Tanh(),
+                nn.Linear(2*hidden_size, 2*hidden_size), nn.Tanh())
 
             self.actor = nn.Sequential(
-                init_(nn.Linear(2*hidden_size+self.ego_dim, hidden_size)), nn.Tanh(),
-                init_(nn.Linear(hidden_size, hidden_size)), nn.Tanh())
+                nn.Linear(2*hidden_size+self.ego_dim, hidden_size), nn.Tanh(),
+                nn.Linear(hidden_size, hidden_size), nn.Tanh())
 
             self.critic = nn.Sequential(
-                init_(nn.Linear(2*hidden_size+self.ego_dim, hidden_size)), nn.Tanh(),
-                init_(nn.Linear(hidden_size, hidden_size)), nn.Tanh())
+                nn.Linear(2*hidden_size+self.ego_dim, hidden_size), nn.Tanh(),
+                nn.Linear(hidden_size, hidden_size), nn.Tanh())
         else:
             self.actor = nn.Sequential(
-                init_(nn.Linear(num_inputs, 2*hidden_size)), nn.Tanh(),
-                init_(nn.Linear(2*hidden_size, hidden_size)), nn.Tanh())
+                nn.Linear(num_inputs, 2*hidden_size), nn.Tanh(),
+                nn.Linear(2*hidden_size, hidden_size), nn.Tanh())
 
             self.critic = nn.Sequential(
-                init_(nn.Linear(num_inputs, 2*hidden_size)), nn.Tanh(),
-                init_(nn.Linear(2*hidden_size, hidden_size)), nn.Tanh())
+                nn.Linear(num_inputs, 2*hidden_size), nn.Tanh(),
+                nn.Linear(2*hidden_size, hidden_size), nn.Tanh())
 
-        self.critic_linear = init_(nn.Linear(hidden_size, 1))
+        self.critic_linear = nn.Linear(hidden_size, 1)
 
         self.train()
 

@@ -87,7 +87,7 @@ class DiagGaussian(nn.Module):
         init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
                                constant_(x, 0))
 
-        self.fc_mean = init_(nn.Linear(num_inputs, num_outputs))
+        self.fc_mean = nn.Linear(num_inputs, num_outputs)
         self.logstd = AddBias(torch.zeros(num_outputs))
 
     def forward(self, x):
@@ -123,10 +123,10 @@ class BetaDist(nn.Module):
                                constant_(x, 0))
 
         self.alpha = nn.Sequential(
-                        init_(nn.Linear(num_inputs, num_outputs)),
+                        nn.Linear(num_inputs, num_outputs),
                         nn.Softplus())
         self.beta = nn.Sequential(
-                        init_(nn.Linear(num_inputs, num_outputs)),
+                        nn.Linear(num_inputs, num_outputs),
                         nn.Softplus())
     def forward(self, x):
         alpha = self.alpha(x) + 1.0
