@@ -185,9 +185,13 @@ class CNNBase(NNBase):
         self.channels = (num_inputs//nstack) - 1
         self.ego_channels = np.arange(nstack) * (self.channels + 1) \
                                 + self.channels
+        if nstack == 1:
+            self.ego_channels = self.ego_channels[0]
+        else:
+            self.ego_channels = list(self.ego_channels)
+
         self.data_channels = list(np.setdiff1d(np.arange(num_inputs),
                                                 self.ego_channels))
-        self.ego_channels = list(self.ego_channels)
         self.ego_dim = ego_dim
 
         self.occupancy = nn.Sequential(
@@ -196,11 +200,17 @@ class CNNBase(NNBase):
             nn.Conv2d(64, 64, (3, 2), stride=(2, 1)), nn.ReLU(), Flatten(),
             nn.Linear(64 * 11 * 1, 256), nn.ReLU(),
             nn.Linear(256, hidden_size), nn.ReLU())
-        self.ego = nn.Sequential(
-            nn.Conv1d(nstack, max(nstack//2, 1), 2), nn.ReLU(), Flatten(),
-            nn.Linear(max(nstack//2, 1) * (self.ego_dim-1), self.ego_dim), nn.ReLU())
+        if nstack == 1:
+            self.ego = nn.Sequential(
+                nn.Linear(8, 64), nn.ReLU(),
+                nn.Linear(64, 32), nn.ReLU())
+        else:
+            self.ego = nn.Sequential(
+                nn.Conv1d(nstack, nstack, 2), nn.ReLU(),
+                nn.Conv1d(nstack, 2, 2), nn.ReLU(), Flatten(),
+                nn.Linear(2 * (self.ego_dim - 2), 32), nn.ReLU())
         self.main = nn.Sequential(
-            nn.Linear(hidden_size + self.ego_dim, 128), nn.ReLU(),
+            nn.Linear(hidden_size + 32, 128), nn.ReLU(),
             nn.Linear(128, hidden_size), nn.ReLU())
 
 

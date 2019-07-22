@@ -114,10 +114,9 @@ function is_terminal(env::EnvState; init::Bool=false)
     road_proj = proj(ego.state.state.posG, env.roadway)
 
     done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
-    final_r -= done * 5.0
-
     done = done || (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) # off roadway
     done = done || is_crash(env, init=init)
+
     final_r -= done * 100.0
 
     # if !env.params.stadium
@@ -225,24 +224,18 @@ function step!(env::EnvState, action::Vector{Float32})
     other_actions = Array{Any}(undef, length(env.scene))
     get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
 
-    ego = get_by_id(env.ego, EGO_ID)
-    s_prev = ego.state.state.posF.s
-
     env, neg_v = tick!(env, action, other_actions) # move to next state
     update!(env.rec, env.scene)
-
-    r = reward(env, action)
 
     if env.params.occupancy
         o, in_lane = observe_occupancy(env)
     else
         o, in_lane = observe(env)
     end
-
     terminal, final_r = is_terminal(env)
 
-    r -= 100.0 * neg_v
-
+    r = reward(env, action)
+    r -= 50.0 * neg_v
     if Bool(terminal)
         r += final_r
     end
@@ -251,8 +244,6 @@ function step!(env::EnvState, action::Vector{Float32})
     end
 
     ego = get_by_id(env.ego, EGO_ID)
-    r += max(ego.state.state.posF.s - s_prev, 0.0)
-
     info = [ego.state.state.posF.s, ego.state.state.posF.t,
                 ego.state.state.posF.ϕ, ego.state.state.v]
 
