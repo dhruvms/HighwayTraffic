@@ -44,6 +44,7 @@ mutable struct EnvState <: AbstractEnv
     # at that (row #) timestep, the egovehicle acceleration and steering angle
     action_state::Vector{Float64}
     init_lane::LaneTag
+    steps::Int
 
     other_cars::Dict{Int, DriverModel}
     colours::Dict{Int, Colorant}
@@ -52,7 +53,8 @@ mutable struct EnvState <: AbstractEnv
 end
 Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene),
                                     e.rec, e.ego, copy(e.action_state),
-                                    e.init_lane, e.other_cars, e.colours)
+                                    e.init_lane, e.steps,
+                                    e.other_cars, e.colours)
 
 
 action_space(params::EnvParams) = ([-4.0, -0.4], [2.0, 0.4])

@@ -40,8 +40,9 @@ function make_env(params::EnvParams)
     action_state = [0.0, 0.0, veh.state.a, veh.state.δ]
     scene, models, colours = populate_scene(params, roadway, veh)
     rec = SceneRecord(params.max_ticks, params.dt)
+    steps = 0
 
-    EnvState(params, roadway, scene, rec, ego, action_state, lanetag,
+    EnvState(params, roadway, scene, rec, ego, action_state, lanetag, steps,
                 models, colours)
 end
 
@@ -111,43 +112,32 @@ function is_terminal(env::EnvState; init::Bool=false)
     done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
     done = done || (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) # off roadway
     done = done || is_crash(env, init=init)
-
     final_r -= done * 100.0
-
-    # if !env.params.stadium
-    #     dist = distance_from_end(env.params, ego)
-    #     done = done || (dist <= 0.05) # no more road left
-    #     final_r += done * 10.0
-    # end
+    done = done || (env.steps ≥ env.params.max_ticks)
 
     done, final_r
 end
 
-function reward(env::EnvState, action::Vector{Float64})
-    # ego = env.scene[findfirst(EGO_ID, env.scene)]
-    ego = get_by_id(env.ego, EGO_ID)
-    lane = get_lane(env.roadway, ego.state.state)
+function reward(env::EnvState, action::Vector{Float64}, in_lane::Bool)
+    reward = 0.0
+    if in_lane
+        # ego = env.scene[findfirst(EGO_ID, env.scene)]
+        ego = get_by_id(env.ego, EGO_ID)
+        lane = get_lane(env.roadway, ego.state.state)
 
-    true_lanetag = LaneTag(lane.tag.segment, env.init_lane.lane)
-    ego_proj = Frenet(ego.state.state.posG,
-                        env.roadway[true_lanetag], env.roadway)
+        true_lanetag = LaneTag(lane.tag.segment, env.init_lane.lane)
+        ego_proj = Frenet(ego.state.state.posG,
+                            env.roadway[true_lanetag], env.roadway)
 
-    reward = 1.0
-    # action cost
-    action_lims = action_space(env.params)
-    reward -= env.params.j_cost * abs(action[1])
-    reward -= env.params.δdot_cost * abs(action[2])
-    reward -= env.params.a_cost * abs(ego.state.a)
-    # desired velocity cost
-    reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
-    # lane follow cost
-    reward -= env.params.ϕ_cost * abs(ego_proj.ϕ)
-    reward -= env.params.t_cost * abs(ego_proj.t)
-
-    # if !env.params.stadium
-    #     dist = distance_from_end(env.params, ego)
-    #     reward += 1.0 - dist
-    # end
+        reward = 100.0
+        # lane follow cost
+        reward -= env.params.ϕ_cost * abs(ego_proj.ϕ)
+        reward -= env.params.t_cost * abs(ego_proj.t)
+    # else
+    #     # action cost
+    #     reward -= env.params.j_cost * abs(action[1])
+    #     reward -= env.params.δdot_cost * abs(action[2])
+    end
 
     reward
 end
@@ -221,6 +211,7 @@ function step!(env::EnvState, action::Vector{Float32})
 
     env, neg_v = tick!(env, action, other_actions) # move to next state
     update!(env.rec, env.scene)
+    env.steps += 1
 
     if env.params.occupancy
         o, in_lane = observe_occupancy(env)
@@ -229,13 +220,9 @@ function step!(env::EnvState, action::Vector{Float32})
     end
     terminal, final_r = is_terminal(env)
 
-    r = reward(env, action)
-    r -= 50.0 * neg_v
+    r = reward(env, action, Bool(in_lane))
     if Bool(terminal)
         r += final_r
-    end
-    if Bool(in_lane)
-        r += 1.0
     end
 
     ego = get_by_id(env.ego, EGO_ID)
