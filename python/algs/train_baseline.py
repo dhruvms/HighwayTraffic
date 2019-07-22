@@ -162,7 +162,7 @@ def main():
             except OSError:
                 pass
 
-            change = args.change * "-Change" + (not args.change) * "-Follow"
+            change = args.change * "-Change" + (not args.change) * "-Follow" + "Sparse"
             cars = "-{}cars".format(args.cars)
             torch.save([
                 actor_critic,
