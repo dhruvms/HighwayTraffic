@@ -41,13 +41,19 @@ function dict_to_simparams(params::Dict)
     cars = get(params, "cars", 30)
     dt = get(params, "dt", 0.2)
     max_ticks = get(params, "max_steps", 200)
-    room = CAR_LENGTH * 2.0
     stadium = get(params, "stadium", false)
     change = get(params, "change", false)
     both = get(params, "both", false)
     fov = get(params, "fov", 50)
     beta = get(params, "beta_dist", false)
     clamp = get(params, "clamp_in_sim", false)
+
+    cars_per_lane = Int(ceil(cars/lanes))
+    room = CAR_LENGTH * 2.0
+    rooms = zeros(lanes, cars_per_lane)
+    for l in 1:lanes
+        rooms[l, :] = cumsum((rand(cars_per_lane) .+ 1) * room)
+    end
 
     v_des = get(params, "v_des", 15.0)
     ego_dim = get(params, "ego_dim", 8)
@@ -78,7 +84,7 @@ function dict_to_simparams(params::Dict)
     costs = costs ./ sum(costs)
     j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost = costs
 
-    EnvParams(length, lanes, cars, dt, max_ticks, room, stadium, change, both,
+    EnvParams(length, lanes, cars, dt, max_ticks, rooms, stadium, change, both,
                 fov, beta, clamp,
                 ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
                 j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost)
@@ -95,8 +101,8 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     end
 
     v0 = rand() * (params.v_des/3.0)
-    s0 = (params.ego_pos / params.lanes) * params.room
     lane0 = LaneTag(segment, lane)
+    s0 = params.rooms[lane, Int(ceil(params.ego_pos/params.lanes))]
     # t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
     # ϕ0 = (2 * rand() - 1) * 0.3 # max steering angle
     t0 = 0.0
@@ -106,19 +112,19 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     return Frame([ego]), lane0
 end
 
-function populate_others(params::P, roadway::Roadway{Float64},
-                            ego_pos::Int) where P <: AbstractParams
+function populate_scene(params::P, roadway::Roadway{Float64},
+                            ego::Entity{AgentState,EgoVehicle,Int64},
+                            ) where P <: AbstractParams
     scene = Scene()
     carcolours = Dict{Int, Colorant}()
     models = Dict{Int, DriverModel}()
 
-    v_num = EGO_ID + 1
-    if ego_pos == -1
-        v_num = 1
-    end
+    push!(scene, Vehicle(ego))
+    carcolours[EGO_ID] = COLOR_CAR_EGO
 
+    v_num = params.ego_pos == -1 ? 1 : EGO_ID + 1
     for i in 1:(params.cars)
-        if i == ego_pos
+        if i == params.ego_pos
             continue
         end
 
@@ -134,7 +140,7 @@ function populate_others(params::P, roadway::Roadway{Float64},
         v0 = rand() * (params.v_des/3.0)
         v_des = rand() * (params.v_des - (params.v_des/3.0)) +
                                                             (params.v_des/3.0)
-        s0 = (i / params.lanes) * params.room
+        s0 = params.rooms[lane, Int(ceil(i/params.lanes))]
         lane0 = LaneTag(segment, lane)
         # t0 = (rand() - 0.5) * (2 * DEFAULT_LANE_WIDTH/4.0)
         # ϕ0 = (2 * rand() - 1) * 0.1
@@ -154,7 +160,8 @@ function populate_others(params::P, roadway::Roadway{Float64},
             end
         elseif type >= 0.0 && type <= 0.5
             models[v_num] = Tim2DDriver(params.dt,
-                                    mlon=IntelligentDriverModel(ΔT=params.dt),
+                                    mlon=IntelligentDriverModel(
+                                            ΔT=params.dt),
                                     mlat=ProportionalLaneTracker())
             carcolours[v_num] = try
                 MONOKAI["color4"]

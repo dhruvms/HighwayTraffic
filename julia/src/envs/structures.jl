@@ -10,7 +10,7 @@ mutable struct EnvParams <: AbstractParams
     cars::Int # number of cars on roadway, including egovehicle
     dt::Float64 # timestep
     max_ticks::Int # max ticks per episode
-    room::Float64 # room between cars
+    rooms::Array{Float64, 2} # room between cars
     stadium::Bool # stadium roadway
     change::Bool # change to different lane
     both::Bool # change or follow

@@ -37,13 +37,8 @@ function make_env(params::EnvParams)
     lanetag = LaneTag(seg, lane)
 
     veh = get_by_id(ego, EGO_ID)
-
-    scene, models, colours = populate_others(params, roadway, params.ego_pos)
-    push!(scene, Vehicle(veh))
-    colours[EGO_ID] = COLOR_CAR_EGO
-
     action_state = [0.0, 0.0, veh.state.a, veh.state.δ]
-
+    scene, models, colours = populate_scene(params, roadway, veh)
     rec = SceneRecord(params.max_ticks, params.dt)
 
     EnvState(params, roadway, scene, rec, ego, action_state, lanetag,
