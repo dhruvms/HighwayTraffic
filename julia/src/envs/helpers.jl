@@ -100,9 +100,23 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
         lane = params.lanes - (params.ego_pos % params.lanes)
     end
 
-    v0 = rand() * (params.v_des/3.0)
     lane0 = LaneTag(segment, lane)
     s0 = params.rooms[lane, Int(ceil(params.ego_pos/params.lanes))]
+    v0 = rand() * params.v_des
+
+    gap = try
+        params.rooms[lane, Int(ceil(params.ego_pos/params.lanes))+1] - s0 -
+                                                                    CAR_LENGTH
+    catch
+        Inf
+    end
+    t_stop = 1.5
+    stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
+    while stop_dist > gap
+        v0 *= 0.9
+        stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
+    end
+
     # t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
     # ϕ0 = (2 * rand() - 1) * 0.3 # max steering angle
     t0 = 0.0
@@ -137,11 +151,21 @@ function populate_scene(params::P, roadway::Roadway{Float64},
         end
         type = rand()
 
-        v0 = rand() * (params.v_des/3.0)
-        v_des = rand() * (params.v_des - (params.v_des/3.0)) +
-                                                            (params.v_des/3.0)
-        s0 = params.rooms[lane, Int(ceil(i/params.lanes))]
         lane0 = LaneTag(segment, lane)
+        s0 = params.rooms[lane, Int(ceil(i/params.lanes))]
+        v0 = rand() * params.v_des
+
+        gap = try
+            params.rooms[lane, Int(ceil(i/params.lanes))+1] - s0 - CAR_LENGTH
+        catch
+            Inf
+        end
+        t_stop = 1.5
+        stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
+        while stop_dist > gap
+            v0 *= 0.9
+            stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
+        end
         # t0 = (rand() - 0.5) * (2 * DEFAULT_LANE_WIDTH/4.0)
         # ϕ0 = (2 * rand() - 1) * 0.1
         t0 = 0.0
@@ -188,6 +212,8 @@ function populate_scene(params::P, roadway::Roadway{Float64},
                 MONOKAY["color5"]
             end
         end
+        v_des = rand() * (params.v_des - (params.v_des/3.0)) +
+                                                            (params.v_des/3.0)
         AutomotiveDrivingModels.set_desired_speed!(models[v_num], v_des)
         v_num += 1
     end
