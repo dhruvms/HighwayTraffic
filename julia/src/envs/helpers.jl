@@ -161,7 +161,11 @@ function populate_scene(params::P, roadway::Roadway{Float64},
         elseif type >= 0.0 && type <= 0.5
             models[v_num] = Tim2DDriver(params.dt,
                                     mlon=IntelligentDriverModel(
-                                            ΔT=params.dt),
+                                            ΔT=params.dt,
+                                            s_min=rand() * CAR_LENGTH,
+                                            T=rand() * 3.0,
+                                            a_max=rand() * 3.0,
+                                            d_cmf=rand() * 2.0),
                                     mlat=ProportionalLaneTracker())
             carcolours[v_num] = try
                 MONOKAI["color4"]
@@ -171,7 +175,12 @@ function populate_scene(params::P, roadway::Roadway{Float64},
         else
             models[v_num] = LatLonSeparableDriver( # produces LatLonAccels
                     ProportionalLaneTracker(), # lateral model
-                    IntelligentDriverModel(ΔT=params.dt), # longitudinal model
+                    IntelligentDriverModel(
+                        ΔT=params.dt,
+                        s_min=rand() * CAR_LENGTH,
+                        T=rand() * 3.0,
+                        a_max=rand() * 3.0,
+                        d_cmf=rand() * 2.0), # longitudinal model
                     )
             carcolours[v_num] = try
                 MONOKAI["color5"]
