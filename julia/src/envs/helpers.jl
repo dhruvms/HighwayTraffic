@@ -74,11 +74,11 @@ function dict_to_simparams(params::Dict)
     end
 
     j_cost = get(params, "j_cost", 1.0)
-    δdot_cost = get(params, "d_cost", 10.0)
-    a_cost = get(params, "a_cost", 100.0)
-    v_cost = get(params, "v_cost", 1000.0)
-    ϕ_cost = get(params, "phi_cost", 500.0)
-    t_cost = get(params, "t_cost", 10000.0)
+    δdot_cost = get(params, "d_cost", 0.1)
+    a_cost = get(params, "a_cost", 1.0)
+    v_cost = get(params, "v_cost", 1.0)
+    ϕ_cost = get(params, "phi_cost", 0.1)
+    t_cost = get(params, "t_cost", 2.0)
 
     costs = [j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost]
     costs = costs ./ sum(costs)
@@ -190,22 +190,37 @@ function populate_scene(params::P, roadway::Roadway{Float64},
                                             T=rand() * 3.0,
                                             a_max=rand() * 3.0,
                                             d_cmf=rand() * 2.0),
-                                    mlat=ProportionalLaneTracker())
+                                    mlat=ProportionalLaneTracker(
+                                            kp=rand() * 3.0,
+                                            kd=rand() * 2.0)
+                                    )
             carcolours[v_num] = try
                 MONOKAI["color4"]
             catch
                 MONOKAY["color4"]
             end
         else
-            models[v_num] = LatLonSeparableDriver( # produces LatLonAccels
-                    ProportionalLaneTracker(), # lateral model
-                    IntelligentDriverModel(
-                        ΔT=params.dt,
-                        s_min=rand() * CAR_LENGTH,
-                        T=rand() * 3.0,
-                        a_max=rand() * 3.0,
-                        d_cmf=rand() * 2.0), # longitudinal model
-                    )
+            models[v_num] = Tim2DDriver(params.dt,
+                                    mlon=IntelligentDriverModel(
+                                            ΔT=params.dt,
+                                            s_min=rand() * CAR_LENGTH,
+                                            T=rand() * 3.0,
+                                            a_max=rand() * 3.0,
+                                            d_cmf=rand() * 2.0),
+                                    mlat=ProportionalLaneTracker(
+                                            kp=rand() * 3.0,
+                                            kd=rand() * 2.0),
+                                    mlane=MOBIL(
+                                            params.dt,
+                                            mlon=IntelligentDriverModel(
+                                                    ΔT=params.dt,
+                                                    s_min=rand() * CAR_LENGTH,
+                                                    T=rand() * 3.0,
+                                                    a_max=rand() * 3.0,
+                                                    d_cmf=rand() * 2.0),
+                                            safe_decel=(rand() + 1) * 2.0,
+                                            politeness=rand(0.01:0.01:0.3))
+                                    )
             carcolours[v_num] = try
                 MONOKAI["color5"]
             catch
@@ -217,6 +232,15 @@ function populate_scene(params::P, roadway::Roadway{Float64},
         AutomotiveDrivingModels.set_desired_speed!(models[v_num], v_des)
         v_num += 1
     end
+
+    s_deadend = maximum(params.rooms) + (rand() + 1) * params.length/20.0
+    lane_deadend = get_lane(roadway, ego.state.state)
+    posF = Frenet(roadway[lane_deadend.tag], s_deadend, 0.0, 0.0)
+    push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
+                                                    VehicleDef(), 101))
+    models[101] = ProportionalSpeedTracker()
+    carcolours[101] = OFFICETHEME["color3"] # red
+    AutomotiveDrivingModels.set_desired_speed!(models[101], 0.0)
 
     (scene, models, carcolours)
 end
