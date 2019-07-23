@@ -129,7 +129,7 @@ class BetaDist(nn.Module):
                         nn.Linear(num_inputs, num_outputs),
                         nn.Softplus())
     def forward(self, x):
-        alpha = self.alpha(x) + 1.0
-        beta = self.beta(x) + 1.0
+        alpha = self.alpha(x) + 1.0 + 1e-6
+        beta = self.beta(x) + 1.0 + 1e-6
 
         return FixedBeta(alpha, beta)
