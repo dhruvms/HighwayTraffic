@@ -202,7 +202,7 @@ class CNNBase(NNBase):
             nn.Linear(256, hidden_size), nn.ReLU())
         if nstack == 1:
             self.ego = nn.Sequential(
-                nn.Linear(8, 64), nn.ReLU(),
+                nn.Linear(self.ego_dim, 64), nn.ReLU(),
                 nn.Linear(64, 32), nn.ReLU())
         else:
             self.ego = nn.Sequential(

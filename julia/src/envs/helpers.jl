@@ -40,7 +40,7 @@ function dict_to_simparams(params::Dict)
     lanes = get(params, "lanes", 3)
     cars = get(params, "cars", 30)
     dt = get(params, "dt", 0.2)
-    max_ticks = get(params, "max_steps", 200)
+    max_ticks = get(params, "max_steps", 500)
     stadium = get(params, "stadium", false)
     change = get(params, "change", false)
     both = get(params, "both", false)
@@ -79,15 +79,16 @@ function dict_to_simparams(params::Dict)
     v_cost = get(params, "v_cost", 1.0)
     ϕ_cost = get(params, "phi_cost", 0.1)
     t_cost = get(params, "t_cost", 2.0)
+    deadend_cost = get(params, "end_cost", 2.0)
 
-    costs = [j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost]
+    costs = [j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost]
     costs = costs ./ sum(costs)
-    j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost = costs
+    j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost = costs
 
     EnvParams(length, lanes, cars, dt, max_ticks, rooms, stadium, change, both,
                 fov, beta, clamp,
                 ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
-                j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost)
+                j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost)
 end
 
 function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
@@ -272,7 +273,8 @@ function get_featurevec(env::EnvState, neighbour::NeighborLongitudinalResult,
                             ego_lanetag::LaneTag;
                             lane::Int=0, rear::Bool=false)
     if isnothing(neighbour.ind) ||
-        abs(neighbour.Δs) > 10 * CAR_LENGTH # car is too far
+            abs(neighbour.Δs) > 10 * CAR_LENGTH || # car is too far
+                neighbour.ind == 101 # neighbour is deadend car
         return zeros(env.params.other_dim)
     else
         veh = env.scene[neighbour.ind]
@@ -347,8 +349,13 @@ function get_ego_features(env::EnvState)
     δ = ego.state.δ
     action = reshape(env.action_state, 4, :)'[end, 1:2]
 
+    deadend = env.scene[findfirst(101, env.scene)]
+    deadend_s = (deadend.state.posF.s - ego.state.state.posF.s) /
+                                                            deadend.state.posF.s
+    deadend_s = max(deadend_s, 0.0)
+
     # TODO: normalise?
-    ego_o = [in_lane, t, ϕ, v, a, δ, action[1], action[2]]
+    ego_o = [deadend_s, in_lane, t, ϕ, v, a, δ, action[1], action[2]]
 
     ego_o
 end
@@ -406,18 +413,30 @@ function get_occupancy_image(env::EnvState)
                     r_start = max(Int(veh_row - (veh.def.length/2.0 - 1.0)), 1)
                     r_end = min(Int(veh_row + veh.def.length/2.0), fov)
                     veh_rows = r_start:r_end
+                    if veh.id == 101
+                        veh_rows = 1:r_end
+                    end
                 else
                     veh_row = env.params.fov + 1 - ceil(Δs)
                     r_start = max(Int(veh_row - (veh.def.length/2.0 - 1.0)), 1)
                     r_end = min(Int(veh_row + veh.def.length/2.0), fov)
                     veh_rows = r_start:r_end
+                    if veh.id == 101
+                        veh_rows = r_start:fov
+                    end
                 end
 
                 occupancy[veh_rows, lane] .= 1
-                rel_vel[veh_rows, lane] .= map_to_01(Δv, -env.params.v_des,
+                if veh.id != 101
+                    rel_vel[veh_rows, lane] .= map_to_01(Δv, -env.params.v_des,
                                                             env.params.v_des)
-                rel_lat_disp[veh_rows, lane] .= Δt / DEFAULT_LANE_WIDTH
-                rel_heading[veh_rows, lane] .= Δϕ / 2π
+                    rel_lat_disp[veh_rows, lane] .= Δt / DEFAULT_LANE_WIDTH
+                    rel_heading[veh_rows, lane] .= Δϕ / 2π
+                else
+                    rel_vel[veh_rows, lane] .= 0.0
+                    rel_lat_disp[veh_rows, lane] .= 0.0
+                    rel_heading[veh_rows, lane] .= 0.0
+                end
             end
         end
     end

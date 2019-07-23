@@ -31,6 +31,7 @@ mutable struct EnvParams <: AbstractParams
     v_cost::Float64
     ϕ_cost::Float64
     t_cost::Float64
+    deadend_cost::Float64
 end
 
 mutable struct EnvState <: AbstractEnv

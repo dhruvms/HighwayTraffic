@@ -22,8 +22,8 @@ def get_args():
     parser.add_argument(
         '--gamma',
         type=float,
-        default=0.99,
-        help='discount factor for rewards (default: 0.99)')
+        default=0.9999,
+        help='discount factor for rewards (default: 0.9999)')
     parser.add_argument(
         '--use-gae',
         action='store_true',
@@ -166,7 +166,7 @@ def get_args():
         help='Max desired velocity')
     parser.add_argument('--dt', default=0.2, type=float,
         help='Simulation timestep')
-    parser.add_argument('--ego-dim', default=8, type=int,
+    parser.add_argument('--ego-dim', default=9, type=int,
         help='Egovehicle feature dimension')
     parser.add_argument('--other-dim', default=7, type=int,
         help='Other vehicle feature dimension')
@@ -184,12 +184,14 @@ def get_args():
         help='Lane heading deviation cost')
     parser.add_argument('--t-cost', default=2.0, type=float,
         help='Lane lateral displacement cost')
+    parser.add_argument('--end-cost', default=2.0, type=float,
+        help='Deadend cost')
     parser.add_argument('--beta-dist', action='store_true', default=False,
         help='use beta distribution policy')
     parser.add_argument('--clamp-in-sim', action='store_true', default=False,
         help='clamp action inside simulator')
 
-    parser.add_argument('--max-steps', type=int, default=200,
+    parser.add_argument('--max-steps', type=int, default=500,
                         help='Max steps per episode')
     parser.add_argument('--eval-episodes', type=int, default=10,
                         help='Evaluation episodes')

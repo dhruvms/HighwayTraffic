@@ -53,10 +53,10 @@ function observe(env::EnvState)
     if env.params.cars - 1 > 0
         other_o = get_neighbour_featurevecs(env)
         o = vcat(ego_o, other_o)
-        return o, ego_o[1]
+        return o, ego_o[1], ego_o[2]
     end
 
-    return ego_o, ego_o[1]
+    return ego_o, ego_o[1], ego_o[2]
 end
 
 function observe_occupancy(env::EnvState)
@@ -68,7 +68,7 @@ function observe_occupancy(env::EnvState)
     ego_mat[1:env.params.ego_dim, 1] = ego_o
     o = cat(o, ego_mat, dims=3)
 
-    return o, ego_o[1]
+    return o, ego_o[1], ego_o[2]
 end
 
 function burn_in_sim!(env::EnvState; steps::Int=0)
@@ -95,9 +95,9 @@ function Base.reset(paramdict::Dict)
     update!(env.rec, env.scene)
 
     if env.params.occupancy
-        o, _ = observe_occupancy(env)
+        o, _, _ = observe_occupancy(env)
     else
-        o, _ = observe(env)
+        o, _, _ = observe(env)
     end
 
     (env, o)
@@ -120,7 +120,8 @@ function is_terminal(env::EnvState; init::Bool=false)
     done, final_r
 end
 
-function reward(env::EnvState, action::Vector{Float64}, in_lane::Bool)
+function reward(env::EnvState, action::Vector{Float64},
+                    deadend::Float64, in_lane::Bool)
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego = get_by_id(env.ego, EGO_ID)
     lane = get_lane(env.roadway, ego.state.state)
@@ -139,14 +140,18 @@ function reward(env::EnvState, action::Vector{Float64}, in_lane::Bool)
         reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
         # lane follow cost
         reward -= env.params.t_cost * abs(ego_proj.t)
-    # else
-    #     # action cost
-    #     reward -= env.params.j_cost * abs(action[1])
-    #     reward -= env.params.δdot_cost * abs(action[2])
-    #     # desired velocity cost
-    #     reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
-    #     # lane follow cost
-    #     reward -= env.params.t_cost * abs(ego_proj.t)
+        # distance to deadend
+        reward += env.params.deadend_cost * deadend
+    else
+        # action cost
+        reward -= env.params.j_cost * abs(action[1])
+        reward -= env.params.δdot_cost * abs(action[2])
+        # desired velocity cost
+        reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
+        # lane follow cost
+        reward -= env.params.t_cost * abs(ego_proj.t)
+        # distance to deadend
+        reward -= env.params.deadend_cost * (1.0 - deadend)
     end
 
     reward
@@ -170,7 +175,7 @@ function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float64},
                 a = ego.state.a
                 δ = ego.state.δ
             end
-        else
+        elseif veh.id != 101
             state′ = propagate(veh, actions[i], env.roadway, env.params.dt)
             env.scene[findfirst(veh.id, env.scene)] = Entity(state′, veh.def, veh.id)
         end
@@ -189,7 +194,7 @@ function AutomotiveDrivingModels.get_actions!(
 
 
     for (i, veh) in enumerate(scene)
-        if veh.id == EGO_ID
+        if veh.id == EGO_ID || veh.id == 101
             actions[i] = LatLonAccel(0, 0)
             continue
         end
@@ -224,13 +229,13 @@ function step!(env::EnvState, action::Vector{Float32})
     env.steps += 1
 
     if env.params.occupancy
-        o, in_lane = observe_occupancy(env)
+        o, deadend, in_lane = observe_occupancy(env)
     else
-        o, in_lane = observe(env)
+        o, deadend, in_lane = observe(env)
     end
     terminal, final_r = is_terminal(env)
 
-    r = reward(env, action, Bool(in_lane))
+    r = reward(env, action, deadend, Bool(in_lane))
     if Bool(terminal)
         r += final_r
     end
