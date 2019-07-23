@@ -84,7 +84,8 @@ function generate_trajectory!(s::MPCState, params::Vector{Float64},
 	noise_a = OrnsteinUhlenbeckNoise([0.0], 0.2, θ=1.0)
 	noise_δ = OrnsteinUhlenbeckNoise([0.0], 0.2, θ=1.0)
 
-	for i in 1:Base.length(times)-1
+	states = [copy(s)]
+    for i in 1:Base.length(times)-1
 		if noisy
 			a_noise = OrnsteinUhlenbeckNoise!(noise_a, timestep)
 			δ_noise = OrnsteinUhlenbeckNoise!(noise_δ, timestep)
@@ -92,9 +93,10 @@ function generate_trajectory!(s::MPCState, params::Vector{Float64},
 		else
 			update_mpc_state!(s, a_interm[i], δ_interm[i], timestep)
 		end
+		push!(states, copy(s))
 	end
 
-	return s, a_interm[1], δ_interm[1]
+	return s, a_interm[1], δ_interm[1], states
 end
 
 """

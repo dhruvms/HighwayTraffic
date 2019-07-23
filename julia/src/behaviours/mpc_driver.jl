@@ -181,9 +181,9 @@ function AutomotiveDrivingModels.observe!(
 	target_pos = Frenet(target_roadind, roadway) # Frenet position on target lane after moving
 
 	target = MPCState()
+	target.x = headway/2.0
 	target.y = lane_choice * target_lane.width + ego_state.posF.t
 	target.θ = 0.0
-	target.x = headway/2.0
 	target.v = 0.0
 	target.β = 0.0
 
@@ -191,12 +191,30 @@ function AutomotiveDrivingModels.observe!(
 	self = MPCState(x=0.0, y=0.0, θ=ego_state.posF.ϕ, v=ego_state.v, β=0.0)
     params = zeros(6)
     hyperparams = [driver.n, driver.timestep, driver.interp]
-    params, a1, δ1, s_fin = optimise_trajectory(target, params, hyperparams, initial=self)
+    params, a1, δ1, s_fin, _ = optimise_trajectory(target, params, hyperparams, initial=self)
 
 	# @printf("(%2.2f, %2.2f, %2.2f, %2.2f)\n", ego_state.v, target.v, s_fin.v, a1)
 
 	driver.a = a1
 	driver.δ = δ1
+end
+
+function get_mpc_trajectory(driver::MPCDriver, scene::Scene, roadway::Roadway,
+							egoid::Int, start::Frenet, v::Float64, goal::Frenet)
+	target = MPCState()
+	target.x = goal.s - start.s
+	target.y = goal.t - start.t
+	target.θ = 0.0
+	target.v = 0.0
+	target.β = 0.0
+
+	# Step 3
+	self = MPCState(x=0.0, y=0.0, θ=start.ϕ, v=v, β=0.0)
+	params = zeros(6)
+	hyperparams = [driver.n, driver.timestep, driver.interp]
+	params, _, _, _, states = optimise_trajectory(target, params, hyperparams, initial=self)
+
+	states
 end
 
 function set_hyperparams!(model::MPCDriver, hyperparams::Vector{Float64})

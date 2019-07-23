@@ -23,7 +23,7 @@ function traj_cost!(s::MPCState, params::Vector{Float64}, target::MPCState,
 					hyperparams::Vector{Float64}; λ::Float64=1.0)
 	s = generate_last_state!(s, params, hyperparams)
 	Δs = state_diff(target, s)
-	return state_cost(Δs) + λ*norm(params, 1)
+	return state_cost(Δs) + λ*norm(params)
 end
 
 function state_diff(target::MPCState, curr::MPCState)
@@ -134,17 +134,18 @@ Optimise MPC trajectory parameters.
 function optimise_trajectory(target::MPCState, params::Vector{Float64},
                             	hyperparams::Vector{Float64};
 								initial::MPCState=nothing,
-								iters::Int64=50, min_cost::Float64=0.1,
+								iters::Int64=50, min_cost::Float64=1e-4,
 								early_term::Float64=1e-9)
 	a1 = nothing
 	δ1 = nothing
 	s_fin = nothing
+	states = nothing
 	old_cost = Inf
     for i in 1:iters
 		s = MPCState()
 		set_initial_state!(s, initial)
 
-		s, a1, δ1 = generate_trajectory!(s, params, hyperparams)
+		s, a1, δ1, states = generate_trajectory!(s, params, hyperparams)
 		s_fin = copy(s)
         Δs = state_diff(target, s)
 		set_initial_state!(s, initial)
@@ -168,9 +169,9 @@ function optimise_trajectory(target::MPCState, params::Vector{Float64},
 
         α = α_line_search(Δp, params, target, hyperparams, initial)
 		params += α .* Δp
-		params[1:3] .= clamp!(params[1:3], MIN_a, MAX_a)
-		params[4:6] .= clamp!(params[4:6], MIN_δ, MAX_δ)
+		# params[1:3] .= clamp!(params[1:3], MIN_a, MAX_a)
+		# params[4:6] .= clamp!(params[4:6], MIN_δ, MAX_δ)
     end
 
-    return params, a1, δ1, s_fin
+    return params, a1, δ1, s_fin, states
 end
