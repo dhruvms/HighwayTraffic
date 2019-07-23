@@ -45,6 +45,7 @@ mutable struct EnvState <: AbstractEnv
     action_state::Vector{Float64}
     init_lane::LaneTag
     steps::Int
+    mpc::DriverModel # mpc driver model
 
     other_cars::Dict{Int, DriverModel}
     colours::Dict{Int, Colorant}
@@ -53,7 +54,7 @@ mutable struct EnvState <: AbstractEnv
 end
 Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene),
                                     e.rec, e.ego, copy(e.action_state),
-                                    e.init_lane, e.steps,
+                                    e.init_lane, e.steps, e.mpc,
                                     e.other_cars, e.colours)
 
 

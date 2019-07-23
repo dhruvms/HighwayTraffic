@@ -12,6 +12,7 @@ include("../agent/agent.jl")
 include("./structures.jl")
 include("./helpers.jl")
 include("../behaviours/mpc_driver.jl")
+include("./traj_overlay.jl")
 
 # TODO: distance_from_end does not make sense for stadium roadways
 
@@ -41,9 +42,10 @@ function make_env(params::EnvParams)
     scene, models, colours = populate_scene(params, roadway, veh)
     rec = SceneRecord(params.max_ticks, params.dt)
     steps = 0
+    mpc = MPCDriver(params.dt)
 
     EnvState(params, roadway, scene, rec, ego, action_state, lanetag, steps,
-                models, colours)
+                mpc, models, colours)
 end
 
 function observe(env::EnvState)
@@ -119,24 +121,32 @@ function is_terminal(env::EnvState; init::Bool=false)
 end
 
 function reward(env::EnvState, action::Vector{Float64}, in_lane::Bool)
+    # ego = env.scene[findfirst(EGO_ID, env.scene)]
+    ego = get_by_id(env.ego, EGO_ID)
+    lane = get_lane(env.roadway, ego.state.state)
+
+    true_lanetag = LaneTag(lane.tag.segment, env.init_lane.lane)
+    ego_proj = Frenet(ego.state.state.posG,
+                        env.roadway[true_lanetag], env.roadway)
+
     reward = 0.0
     if in_lane
-        # ego = env.scene[findfirst(EGO_ID, env.scene)]
-        ego = get_by_id(env.ego, EGO_ID)
-        lane = get_lane(env.roadway, ego.state.state)
-
-        true_lanetag = LaneTag(lane.tag.segment, env.init_lane.lane)
-        ego_proj = Frenet(ego.state.state.posG,
-                            env.roadway[true_lanetag], env.roadway)
-
-        reward = 100.0
+        reward += 100.0
+        # action cost
+        reward -= env.params.j_cost * abs(action[1])
+        reward -= env.params.δdot_cost * abs(action[2])
+        # desired velocity cost
+        reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
         # lane follow cost
-        reward -= env.params.ϕ_cost * abs(ego_proj.ϕ)
         reward -= env.params.t_cost * abs(ego_proj.t)
     # else
     #     # action cost
     #     reward -= env.params.j_cost * abs(action[1])
     #     reward -= env.params.δdot_cost * abs(action[2])
+    #     # desired velocity cost
+    #     reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
+    #     # lane follow cost
+    #     reward -= env.params.t_cost * abs(ego_proj.t)
     end
 
     reward
@@ -243,6 +253,16 @@ function save_gif(env::EnvState, filename::String="default.gif")
     for frame_index in 1:ticks
         scene = env.rec[frame_index-ticks]
         ego = scene[findfirst(EGO_ID, scene)]
+        lane = get_lane(env.roadway, ego.state)
+        true_lanetag = LaneTag(lane.tag.segment, env.init_lane.lane)
+        ego_proj = Frenet(ego.state.posG,
+                            env.roadway[true_lanetag], env.roadway)
+        target_roadind = move_along(ego_proj.roadind, env.roadway,
+                                    CAR_LENGTH * 2.0)
+        goal = Frenet(target_roadind, env.roadway)
+        traj = get_mpc_trajectory(env.mpc, env.scene, env.roadway, EGO_ID,
+                                    ego_proj, ego.state.v, goal)
+        traj_overlay = TrajOverlay(traj)
 
         action_state = reshape(env.action_state, 4, :)'
         action_state = action_state[frame_index, :]
@@ -255,7 +275,7 @@ function save_gif(env::EnvState, filename::String="default.gif")
         action_overlay = TextOverlay(text=[jerk_text, δrate_text,
                             acc_text, δ_text, v_text, lane_text], font_size=14)
 
-        push!(frames, render(scene, env.roadway, [action_overlay], cam=cam, car_colors=env.colours))
+        push!(frames, render(scene, env.roadway, [action_overlay, traj_overlay], cam=cam, car_colors=env.colours))
     end
     Reel.write(filename, frames)
 end
