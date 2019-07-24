@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
 
 from a2c_ppo_acktr.distributions import Bernoulli, Categorical, DiagGaussian, BetaDist
 from a2c_ppo_acktr.utils import init
@@ -37,6 +38,8 @@ class Policy(nn.Module):
             self.beta_dist = beta_dist
             if self.beta_dist:
                 self.dist = BetaDist(self.base.output_size, num_outputs)
+                self.entropy_lb = Variable(
+                    torch.distributions.Beta(20, 20).entropy().float())
             else:
                 self.dist = DiagGaussian(self.base.output_size, num_outputs)
             self.hi_lim = action_space.high
@@ -70,6 +73,8 @@ class Policy(nn.Module):
 
         action_log_probs = dist.log_probs(action)
         dist_entropy = dist.entropy().mean()
+        # if self.beta_dist:
+        #     dist_entropy /= self.entropy_lb.to(dist_entropy.device)
 
         return value, action, action_log_probs, rnn_hxs
 
@@ -196,38 +201,33 @@ class CNNBase(NNBase):
 
         # common to actor and critic
         self.conv_net = nn.Sequential(
-            nn.Conv2d(self.channels*nstack, 32, (4, 2), stride=(2, 1)), nn.ReLU(),
-            nn.Conv2d(32, 64, (3, 1), stride=(2, 1)), nn.ReLU(),
-            nn.Conv2d(64, 64, (3, 2), stride=(2, 1)), nn.ReLU(), Flatten())
+            nn.Conv2d(self.channels*nstack, 32, (9, 3), stride=(4, 1)),
+            nn.ReLU(), Flatten())
         if nstack == 1:
             self.ego = nn.Sequential(
-                nn.Linear(self.ego_dim, 64), nn.ReLU(),
-                nn.Linear(64, 64), nn.ReLU())
+                nn.Linear(self.ego_dim, 32), nn.ReLU())
         else:
             self.ego = nn.Sequential(
-                nn.Conv1d(nstack, nstack, 2), nn.ReLU(),
-                nn.Conv1d(nstack, 2, 2), nn.ReLU(), Flatten(),
-                nn.Linear(2 * (self.ego_dim - 2), 64), nn.ReLU())
+                nn.Conv1d(nstack, 1, 3), nn.ReLU(), Flatten(),
+                nn.Linear((self.ego_dim - 2), 32), nn.ReLU())
 
         self.actor_others = nn.Sequential(
-            nn.Linear(64 * 11 * 1, 256), nn.ReLU(),
-            nn.Linear(256, hidden_size), nn.ReLU())
+            nn.Linear(32 * 24 * 1, 64), nn.ReLU(),
+            nn.Linear(64, hidden_size), nn.ReLU())
         self.critic_others = nn.Sequential(
-            nn.Linear(64 * 11 * 1, 256), nn.ReLU(),
-            nn.Linear(256, hidden_size), nn.ReLU())
+            nn.Linear(32 * 24 * 1, 64), nn.ReLU(),
+            nn.Linear(64, hidden_size), nn.ReLU())
 
         self.actor = nn.Sequential(
-            nn.Linear(hidden_size + 64, 256), nn.ReLU(),
-            nn.Linear(256, 128), nn.ReLU(),
-            nn.Linear(128, hidden_size), nn.ReLU())
+            nn.Linear(hidden_size + 32, 64), nn.ReLU(),
+            nn.Linear(64, hidden_size), nn.ReLU())
 
         init_ = lambda m: init(m, nn.init.xavier_uniform_, lambda x: nn.init.
                                constant_(x, 0))
 
         self.critic = nn.Sequential(
-            nn.Linear(hidden_size + 64, 256), nn.ReLU(),
-            nn.Linear(256, 128), nn.ReLU(),
-            nn.Linear(128, 1))
+            nn.Linear(hidden_size + 32, 64), nn.ReLU(),
+            nn.Linear(64, 1))
 
         self.train()
 
@@ -267,26 +267,24 @@ class MLPBase(NNBase):
             self.ego_dim = ego_dim
             self.others_dim = num_inputs-self.ego_dim
             self.other_cars = nn.Sequential(
-                nn.Linear(self.others_dim, 2*hidden_size), nn.Tanh(),
-                nn.Linear(2*hidden_size, 2*hidden_size), nn.Tanh())
+                nn.Linear(self.others_dim, hidden_size), nn.Tanh(),
+                nn.Linear(hidden_size, hidden_size), nn.Tanh())
 
             self.actor = nn.Sequential(
-                nn.Linear(2*hidden_size+self.ego_dim, hidden_size), nn.Tanh(),
+                nn.Linear(hidden_size+self.ego_dim, hidden_size), nn.Tanh(),
                 nn.Linear(hidden_size, hidden_size), nn.Tanh())
 
             self.critic = nn.Sequential(
-                nn.Linear(2*hidden_size+self.ego_dim, hidden_size), nn.Tanh(),
-                nn.Linear(hidden_size, hidden_size), nn.Tanh())
+                nn.Linear(hidden_size+self.ego_dim, hidden_size), nn.Tanh(),
+                nn.Linear(hidden_size, 1), nn.Tanh())
         else:
             self.actor = nn.Sequential(
-                nn.Linear(num_inputs, 2*hidden_size), nn.Tanh(),
-                nn.Linear(2*hidden_size, hidden_size), nn.Tanh())
+                nn.Linear(num_inputs, hidden_size), nn.Tanh(),
+                nn.Linear(hidden_size, hidden_size), nn.Tanh())
 
             self.critic = nn.Sequential(
-                nn.Linear(num_inputs, 2*hidden_size), nn.Tanh(),
-                nn.Linear(2*hidden_size, hidden_size), nn.Tanh())
-
-        self.critic_linear = nn.Linear(hidden_size, 1)
+                nn.Linear(num_inputs, hidden_size), nn.Tanh(),
+                nn.Linear(hidden_size, 1))
 
         self.train()
 
@@ -302,10 +300,10 @@ class MLPBase(NNBase):
             other_features = self.other_cars(other_cars)
             all_cars = torch.cat([ego, other_features], 1)
 
-            hidden_critic = self.critic(all_cars)
-            hidden_actor = self.actor(all_cars)
+            value = self.critic(all_cars)
+            policy = self.actor(all_cars)
         else:
-            hidden_critic = self.critic(x)
-            hidden_actor = self.actor(x)
+            value = self.critic(x)
+            policy = self.actor(x)
 
-        return self.critic_linear(hidden_critic), hidden_actor, rnn_hxs
+        return value, policy, rnn_hxs
