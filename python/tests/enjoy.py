@@ -26,7 +26,7 @@ action_space_lo = env.action_space.low
 # Get a render function
 render_func = get_render_func(env)
 timestr = time.strftime("%Y%m%d-%H%M%S")
-change = args.change * "-Change" + (not args.change) * "-Follow" + "Sparse2" + "2Lanes"
+change = args.change * "-Change" + (not args.change) * "-Follow"
 cars = "-{}cars".format(args.cars)
 gifdir = args.load_dir + args.algo + '/gifs/' + args.env_name.lower() + change.lower() + cars.lower() + '/' + timestr + '/'
 if not os.path.exists(gifdir):

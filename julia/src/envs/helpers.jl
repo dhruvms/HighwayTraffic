@@ -50,13 +50,14 @@ function dict_to_simparams(params::Dict)
 
     cars_per_lane = Int(ceil(cars/lanes))
     room = CAR_LENGTH * 2.0
+    room = stadium ? room / 2.0 : room
     rooms = zeros(lanes, cars_per_lane)
     for l in 1:lanes
         rooms[l, :] = cumsum((rand(cars_per_lane) .+ 1) * room)
     end
 
     v_des = get(params, "v_des", 15.0)
-    ego_dim = get(params, "ego_dim", 8)
+    ego_dim = get(params, "ego_dim", 9)
     other_dim = get(params, "other_dim", 7)
     occupancy = get(params, "occupancy", false)
 
@@ -100,6 +101,8 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
         segment = 1
         lane = params.lanes - (params.ego_pos % params.lanes)
     end
+    segment = Int(segment)
+    lane = Int(lane)
 
     lane0 = LaneTag(segment, lane)
     s0 = params.rooms[lane, Int(ceil(params.ego_pos/params.lanes))]
@@ -150,6 +153,9 @@ function populate_scene(params::P, roadway::Roadway{Float64},
             segment = 1
             lane = params.lanes - (i % params.lanes)
         end
+        segment = Int(segment)
+        lane = Int(lane)
+
         type = rand()
 
         lane0 = LaneTag(segment, lane)
@@ -187,13 +193,9 @@ function populate_scene(params::P, roadway::Roadway{Float64},
             models[v_num] = Tim2DDriver(params.dt,
                                     mlon=IntelligentDriverModel(
                                             ΔT=params.dt,
-                                            s_min=rand() * CAR_LENGTH,
-                                            T=rand() * 3.0,
-                                            a_max=rand() * 3.0,
-                                            d_cmf=rand() * 2.0),
-                                    mlat=ProportionalLaneTracker(
-                                            kp=rand() * 3.0,
-                                            kd=rand() * 2.0)
+                                            s_min=(rand() + 1) * CAR_LENGTH,
+                                            T=(rand() + 1) * 2.0),
+                                    mlat=ProportionalLaneTracker()
                                     )
             carcolours[v_num] = try
                 MONOKAI["color4"]
@@ -201,24 +203,20 @@ function populate_scene(params::P, roadway::Roadway{Float64},
                 MONOKAY["color4"]
             end
         else
+            s_min = (rand() + 1) * CAR_LENGTH
+            T = (rand() + 1) * 2.0
             models[v_num] = Tim2DDriver(params.dt,
                                     mlon=IntelligentDriverModel(
                                             ΔT=params.dt,
-                                            s_min=rand() * CAR_LENGTH,
-                                            T=rand() * 3.0,
-                                            a_max=rand() * 3.0,
-                                            d_cmf=rand() * 2.0),
-                                    mlat=ProportionalLaneTracker(
-                                            kp=rand() * 3.0,
-                                            kd=rand() * 2.0),
+                                            s_min=s_min,
+                                            T=T),
+                                    mlat=ProportionalLaneTracker(),
                                     mlane=MOBIL(
                                             params.dt,
                                             mlon=IntelligentDriverModel(
                                                     ΔT=params.dt,
-                                                    s_min=rand() * CAR_LENGTH,
-                                                    T=rand() * 3.0,
-                                                    a_max=rand() * 3.0,
-                                                    d_cmf=rand() * 2.0),
+                                                    s_min=s_min,
+                                                    T=T),
                                             safe_decel=(rand() + 1) * 2.0,
                                             politeness=rand(0.01:0.01:0.3))
                                     )
@@ -234,7 +232,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
         v_num += 1
     end
 
-    s_deadend = maximum(params.rooms) + (rand() + 1) * params.length/20.0
+    s_deadend = maximum(params.rooms) + (rand() + 1) * params.length/10.0
     lane_deadend = get_lane(roadway, ego.state.state)
     posF = Frenet(roadway[lane_deadend.tag], s_deadend, 0.0, 0.0)
     push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),

@@ -117,6 +117,14 @@ function is_terminal(env::EnvState; init::Bool=false)
     final_r -= done * 100.0
     done = done || (env.steps ≥ env.params.max_ticks)
 
+    max_s = 0.0
+    for (i, veh) in enumerate(env.scene)
+        if veh.id != 101 && veh.state.posF.s > max_s
+            max_s = veh.state.posF.s
+        end
+    end
+    done = done || (max_s ≥ env.params.length * 0.95)
+
     done, final_r
 end
 

@@ -131,6 +131,7 @@ class ZMQEnv(gym.Env):
 
         if data["done"] and self.params["eval"]:
             filename = "eval_ep.gif"
+            print("[Py-INFO] Render GIF %s from Python ZMQ env." % (filename))
             self.render(filename)
 
         obs = data["obs"]

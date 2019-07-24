@@ -172,6 +172,8 @@ def get_args():
         help='Other vehicle feature dimension')
     parser.add_argument('--occupancy', action='store_true', default=False,
         help='occupancy grid observation')
+    parser.add_argument('--fov', default=50, type=int,
+        help='Field of view')
     parser.add_argument('--j-cost', default=1.0, type=float,
         help='Jerk cost')
     parser.add_argument('--d-cost', default=0.1, type=float,
