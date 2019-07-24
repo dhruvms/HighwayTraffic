@@ -193,7 +193,7 @@ def get_args():
     parser.add_argument('--clamp-in-sim', action='store_true', default=False,
         help='clamp action inside simulator')
 
-    parser.add_argument('--max-steps', type=int, default=500,
+    parser.add_argument('--max-steps', type=int, default=200,
                         help='Max steps per episode')
     parser.add_argument('--eval-episodes', type=int, default=10,
                         help='Evaluation episodes')
