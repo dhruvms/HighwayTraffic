@@ -3,6 +3,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
 
 from a2c_ppo_acktr.utils import AddBias, init
 
@@ -128,8 +129,12 @@ class BetaDist(nn.Module):
         self.beta = nn.Sequential(
                         nn.Linear(num_inputs, num_outputs),
                         nn.Softplus())
+
     def forward(self, x):
-        alpha = self.alpha(x) + 1.0 + 1e-6
-        beta = self.beta(x) + 1.0 + 1e-6
+        alpha = self.alpha(x)
+        alpha += Variable(torch.ones(alpha.shape).to(alpha.device))
+
+        beta = self.beta(x)
+        beta += Variable(torch.ones(beta.shape).to(beta.device))
 
         return FixedBeta(alpha, beta)

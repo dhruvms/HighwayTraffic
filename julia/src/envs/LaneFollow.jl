@@ -140,7 +140,7 @@ function reward(env::EnvState, action::Vector{Float64},
 
     reward = 0.0
     if in_lane
-        reward += 100.0
+        reward += 10.0
         # action cost
         reward -= env.params.j_cost * abs(action[1])
         reward -= env.params.δdot_cost * abs(action[2])

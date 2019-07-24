@@ -82,9 +82,9 @@ function dict_to_simparams(params::Dict)
     t_cost = get(params, "t_cost", 2.0)
     deadend_cost = get(params, "end_cost", 2.0)
 
-    costs = [j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost]
-    costs = costs ./ sum(costs)
-    j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost = costs
+    # costs = [j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost]
+    # costs = costs ./ sum(costs)
+    # j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost = costs
 
     EnvParams(length, lanes, cars, dt, max_ticks, rooms, stadium, change, both,
                 fov, beta, clamp,

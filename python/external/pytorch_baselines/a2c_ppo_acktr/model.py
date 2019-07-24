@@ -194,46 +194,62 @@ class CNNBase(NNBase):
                                                 self.ego_channels))
         self.ego_dim = ego_dim
 
-        self.occupancy = nn.Sequential(
+        # common to actor and critic
+        self.conv_net = nn.Sequential(
             nn.Conv2d(self.channels*nstack, 32, (4, 2), stride=(2, 1)), nn.ReLU(),
             nn.Conv2d(32, 64, (3, 1), stride=(2, 1)), nn.ReLU(),
-            nn.Conv2d(64, 64, (3, 2), stride=(2, 1)), nn.ReLU(), Flatten(),
-            nn.Linear(64 * 11 * 1, 256), nn.ReLU(),
-            nn.Linear(256, hidden_size), nn.ReLU())
+            nn.Conv2d(64, 64, (3, 2), stride=(2, 1)), nn.ReLU(), Flatten())
         if nstack == 1:
             self.ego = nn.Sequential(
                 nn.Linear(self.ego_dim, 64), nn.ReLU(),
-                nn.Linear(64, 32), nn.ReLU())
+                nn.Linear(64, 64), nn.ReLU())
         else:
             self.ego = nn.Sequential(
                 nn.Conv1d(nstack, nstack, 2), nn.ReLU(),
                 nn.Conv1d(nstack, 2, 2), nn.ReLU(), Flatten(),
-                nn.Linear(2 * (self.ego_dim - 2), 32), nn.ReLU())
-        self.main = nn.Sequential(
-            nn.Linear(hidden_size + 32, 128), nn.ReLU(),
-            nn.Linear(128, hidden_size), nn.ReLU())
+                nn.Linear(2 * (self.ego_dim - 2), 64), nn.ReLU())
 
+        self.actor_others = nn.Sequential(
+            nn.Linear(64 * 11 * 1, 256), nn.ReLU(),
+            nn.Linear(256, hidden_size), nn.ReLU())
+        self.critic_others = nn.Sequential(
+            nn.Linear(64 * 11 * 1, 256), nn.ReLU(),
+            nn.Linear(256, hidden_size), nn.ReLU())
+
+        self.actor = nn.Sequential(
+            nn.Linear(hidden_size + 64, 256), nn.ReLU(),
+            nn.Linear(256, 128), nn.ReLU(),
+            nn.Linear(128, hidden_size), nn.ReLU())
 
         init_ = lambda m: init(m, nn.init.xavier_uniform_, lambda x: nn.init.
                                constant_(x, 0))
 
-        self.critic_linear = nn.Linear(hidden_size, 1)
+        self.critic = nn.Sequential(
+            nn.Linear(hidden_size + 64, 256), nn.ReLU(),
+            nn.Linear(256, 128), nn.ReLU(),
+            nn.Linear(128, 1))
 
         self.train()
 
     def forward(self, inputs, rnn_hxs, masks):
         ego_vec = inputs[:, self.ego_channels, :self.ego_dim, 0]
         inputs = inputs[:, self.data_channels, :, :]
-        others = self.occupancy(inputs)
+
+        # common
+        others = self.conv_net(inputs)
         ego = self.ego(ego_vec)
-        feats = torch.cat([others, ego], 1)
-        x = self.main(feats)
+
+        actor_others = self.actor_others(others)
+        critic_others = self.critic_others(others)
+
+        feats_actor = torch.cat([actor_others, ego], 1)
+        feats_critic = torch.cat([critic_others, ego], 1)
+        x = self.actor(feats_actor)
 
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
 
-        return self.critic_linear(x), x, rnn_hxs
-
+        return self.critic(feats_critic), x, rnn_hxs
 
 class MLPBase(NNBase):
     def __init__(self, num_inputs, other_cars=False, ego_dim=None, recurrent=False, hidden_size=64):
