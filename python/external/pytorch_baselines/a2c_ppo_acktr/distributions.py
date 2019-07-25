@@ -120,9 +120,6 @@ class BetaDist(nn.Module):
     def __init__(self, num_inputs, num_outputs):
         super(BetaDist, self).__init__()
 
-        init_ = lambda m: init(m, nn.init.xavier_uniform_, lambda x: nn.init.
-                               constant_(x, 0))
-
         self.alpha = nn.Sequential(
                         nn.Linear(num_inputs, num_outputs),
                         nn.Softplus())
@@ -132,11 +129,11 @@ class BetaDist(nn.Module):
 
     def forward(self, x):
         alpha = self.alpha(x)
-        ones_a = Variable(torch.Tensor([2]).float()).to(alpha.device)
+        ones_a = Variable(torch.Tensor([1]).float()).to(alpha.device)
         alpha_plus =  alpha + ones_a.expand(alpha.size())
 
         beta = self.beta(x)
-        ones_b = Variable(torch.Tensor([2]).float()).to(beta.device)
+        ones_b = Variable(torch.Tensor([1]).float()).to(beta.device)
         beta_plus =  beta + ones_b.expand(beta.size())
 
         return FixedBeta(alpha_plus, beta_plus)
