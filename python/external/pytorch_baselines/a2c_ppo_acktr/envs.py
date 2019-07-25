@@ -96,11 +96,10 @@ def make_vec_envs(args,
     else:
         envs = DummyVecEnv(envs)
 
-    # if len(envs.observation_space.shape) == 1:
-    #     if gamma is None:
-    #         envs = VecNormalize(envs, ret=False)
-    #     else:
-    #         envs = VecNormalize(envs, gamma=gamma)
+    if gamma is None:
+        envs = VecNormalize(envs, ret=False)
+    else:
+        envs = VecNormalize(envs, gamma=gamma)
 
     envs = VecPyTorch(envs, device)
 
@@ -192,6 +191,7 @@ class VecNormalize(VecNormalize_):
     def __init__(self, *args, **kwargs):
         super(VecNormalize, self).__init__(*args, **kwargs)
         self.training = True
+        self.ob_rms = None # do not normalise observations
 
     def _obfilt(self, obs, update=True):
         if self.ob_rms:
