@@ -138,26 +138,31 @@ function reward(env::EnvState, action::Vector{Float64},
     ego_proj = Frenet(ego.state.state.posG,
                         env.roadway[true_lanetag], env.roadway)
 
-    reward = 0.0
+    reward = 1.0
     if in_lane
-        reward += 10.0
+        reward += 1.0
         # action cost
         reward -= env.params.j_cost * abs(action[1])
         reward -= env.params.δdot_cost * abs(action[2])
+        reward -= env.params.a_cost * abs(ego.state.a)
         # desired velocity cost
-        reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
+        reward -= env.params.v_cost * abs(
+                    (ego.state.state.v - env.params.v_des) / env.params.v_des)
         # lane follow cost
-        reward -= env.params.t_cost * abs(ego_proj.t)
+        reward -= env.params.t_cost * abs(ego_proj.t) / DEFAULT_LANE_WIDTH
+        reward -= env.params.ϕ_cost * abs(ego_proj.ϕ)
         # distance to deadend
         reward += env.params.deadend_cost * deadend
     else
         # action cost
         reward -= env.params.j_cost * abs(action[1])
         reward -= env.params.δdot_cost * abs(action[2])
+        reward -= env.params.a_cost * abs(ego.state.a)
         # desired velocity cost
-        reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
+        reward -= env.params.v_cost * abs(
+                    (ego.state.state.v - env.params.v_des) / env.params.v_des)
         # lane follow cost
-        reward -= env.params.t_cost * abs(ego_proj.t)
+        reward -= env.params.t_cost * abs(ego_proj.t) / DEFAULT_LANE_WIDTH
         # distance to deadend
         reward -= env.params.deadend_cost * (1.0 - deadend)
     end
@@ -232,6 +237,8 @@ function step!(env::EnvState, action::Vector{Float32})
     other_actions = Array{Any}(undef, length(env.scene))
     get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
 
+    ego = get_by_id(env.ego, EGO_ID)
+    s_prev = ego.state.state.posF.s
     env, neg_v = tick!(env, action, other_actions) # move to next state
     update!(env.rec, env.scene)
     env.steps += 1
@@ -244,11 +251,14 @@ function step!(env::EnvState, action::Vector{Float32})
     terminal, final_r = is_terminal(env)
 
     r = reward(env, action, deadend, Bool(in_lane))
+    r -= 100.0 * neg_v
     if Bool(terminal)
         r += final_r
     end
 
     ego = get_by_id(env.ego, EGO_ID)
+    s_new = ego.state.state.posF.s
+    r += 10.0 * (s_new - s_prev)
     info = [ego.state.state.posF.s, ego.state.state.posF.t,
                 ego.state.state.posF.ϕ, ego.state.state.v]
 

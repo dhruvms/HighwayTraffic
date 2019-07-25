@@ -176,17 +176,17 @@ def get_args():
         help='Field of view')
     parser.add_argument('--j-cost', default=1.0, type=float,
         help='Jerk cost')
-    parser.add_argument('--d-cost', default=0.1, type=float,
+    parser.add_argument('--d-cost', default=10.0, type=float,
         help='Steering rate cost')
-    parser.add_argument('--a-cost', default=1.0, type=float,
+    parser.add_argument('--a-cost', default=100.0, type=float,
         help='Acceleration cost')
-    parser.add_argument('--v-cost', default=1.0, type=float,
+    parser.add_argument('--v-cost', default=1000.0, type=float,
         help='Desired velocity deviation cost')
-    parser.add_argument('--phi-cost', default=0.1, type=float,
+    parser.add_argument('--phi-cost', default=500.0, type=float,
         help='Lane heading deviation cost')
-    parser.add_argument('--t-cost', default=2.0, type=float,
+    parser.add_argument('--t-cost', default=10000.0, type=float,
         help='Lane lateral displacement cost')
-    parser.add_argument('--end-cost', default=2.0, type=float,
+    parser.add_argument('--end-cost', default=1000.0, type=float,
         help='Deadend cost')
     parser.add_argument('--beta-dist', action='store_true', default=False,
         help='use beta distribution policy')
