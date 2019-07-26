@@ -258,7 +258,7 @@ function step!(env::EnvState, action::Vector{Float32})
 
     ego = get_by_id(env.ego, EGO_ID)
     s_new = ego.state.state.posF.s
-    r += 10.0 * (s_new - s_prev)
+    # r += 10.0 * (s_new - s_prev)
     info = [ego.state.state.posF.s, ego.state.state.posF.t,
                 ego.state.state.posF.ϕ, ego.state.state.v]
 
