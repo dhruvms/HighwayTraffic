@@ -192,6 +192,8 @@ def get_args():
         help='use beta distribution policy')
     parser.add_argument('--clamp-in-sim', action='store_true', default=False,
         help='clamp action inside simulator')
+    parser.add_argument('--high-level', action='store_true', default=False,
+        help='output higher level action for lane change')
 
     parser.add_argument('--max-steps', type=int, default=200,
                         help='Max steps per episode')

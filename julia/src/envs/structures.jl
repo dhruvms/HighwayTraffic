@@ -17,6 +17,8 @@ mutable struct EnvParams <: AbstractParams
     fov::Int # longitudinal field-of-view
     beta::Bool # beta distribution policy in use
     clamp::Bool # clamp action to limits
+    highlevel::Bool # high level action
+    sim_forward::Int # traditional controller takeover time
 
     ego_pos::Int # location of egovehicle, between [1, cars]
     v_des::Float64 # desired velocity
@@ -47,6 +49,7 @@ mutable struct EnvState <: AbstractEnv
     init_lane::LaneTag
     steps::Int
     mpc::DriverModel # mpc driver model
+    controller::DriverModel # traditional controller
 
     other_cars::Dict{Int, DriverModel}
     colours::Dict{Int, Colorant}
@@ -55,7 +58,7 @@ mutable struct EnvState <: AbstractEnv
 end
 Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene),
                                     e.rec, e.ego, copy(e.action_state),
-                                    e.init_lane, e.steps, e.mpc,
+                                    e.init_lane, e.steps, e.mpc, e.controller,
                                     e.other_cars, e.colours)
 
 

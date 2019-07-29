@@ -43,9 +43,14 @@ function make_env(params::EnvParams)
     rec = SceneRecord(params.max_ticks, params.dt)
     steps = 0
     mpc = MPCDriver(params.dt)
+    controller = Tim2DDriver(params.dt,
+                            mlon=IntelligentDriverModel(),
+                            mlat=ProportionalLaneTracker(),
+                            mlane=MOBIL(params.dt)
+                            )
 
     EnvState(params, roadway, scene, rec, ego, action_state, lanetag, steps,
-                mpc, models, colours)
+                mpc, controller, models, colours)
 end
 
 function observe(env::EnvState)

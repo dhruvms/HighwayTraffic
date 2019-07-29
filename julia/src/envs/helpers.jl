@@ -47,6 +47,8 @@ function dict_to_simparams(params::Dict)
     fov = get(params, "fov", 50)
     beta = get(params, "beta_dist", false)
     clamp = get(params, "clamp_in_sim", false)
+    highlevel = get(params, "high_level", false)
+    sim_forward = get(params, "sim_forward", 10)
 
     cars_per_lane = Int(ceil(cars/lanes))
     room = CAR_LENGTH * 2.0
@@ -87,7 +89,7 @@ function dict_to_simparams(params::Dict)
     j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost = costs
 
     EnvParams(length, lanes, cars, dt, max_ticks, rooms, stadium, change, both,
-                fov, beta, clamp,
+                fov, beta, clamp, highlevel, sim_forward,
                 ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
                 j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost)
 end

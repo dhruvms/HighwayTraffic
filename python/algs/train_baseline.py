@@ -57,6 +57,7 @@ def main():
         envs.action_space,
         other_cars=other_cars, ego_dim=args.ego_dim,
         beta_dist=args.beta_dist,
+        high_level=args.high_level,
         base_kwargs={'recurrent': args.recurrent_policy})
     actor_critic.to(device)
     print(actor_critic)

@@ -15,7 +15,7 @@ class Flatten(nn.Module):
 
 class Policy(nn.Module):
     def __init__(self, obs_shape, action_space,
-        other_cars=False, ego_dim=None, beta_dist=False,
+        other_cars=False, ego_dim=None, beta_dist=False, high_level=False,
         base=None, base_kwargs=None):
         super(Policy, self).__init__()
         if base_kwargs is None:
@@ -35,8 +35,11 @@ class Policy(nn.Module):
             self.dist = Categorical(self.base.output_size, num_outputs)
         elif action_space.__class__.__name__ == "Box":
             num_outputs = action_space.shape[0]
+            self.high_level = high_level
             self.beta_dist = beta_dist
-            if self.beta_dist:
+            if self.high_level:
+                self.dist = Categorical(self.base.output_size, 3)
+            elif self.beta_dist:
                 self.dist = BetaDist(self.base.output_size, num_outputs)
                 self.entropy_lb = Variable(
                     torch.distributions.Beta(20, 20).entropy().float())
