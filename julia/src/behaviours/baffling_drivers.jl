@@ -1,5 +1,10 @@
 using AutomotiveDrivingModels
 using LinearAlgebra
+
+include("baffling_lateral_tracker.jl")
+include("baffling_longitudinal_tracker.jl")
+include("baffling_lane_changer.jl")
+
 """
 	BafflingDriver
 Driver that randomly changes lanes and speeds.
@@ -33,7 +38,7 @@ mutable struct BafflingDriver <: DriverModel{LatLonAccel}
         mlat::LateralDriverModel=BafflingLateralTracker(),
         mlane::LaneChangeModel=BafflingLaneChanger(timestep,threshold_lane_change_rand = r),
         rec::SceneRecord = SceneRecord(1, timestep),
-        allowLaneChange = true
+        allowLaneChange = false
         )
 
         retval = new()
@@ -59,14 +64,13 @@ function AutomotiveDrivingModels.set_desired_speed!(model::BafflingDriver, v_des
 end
 
 function AutomotiveDrivingModels.propagate(veh::Entity{VehicleState, VehicleDef, Int}, action::LatLonAccel, roadway::Roadway, ΔT::Float64; Δϕ_max::Float64 = 0.4)
-
     a_lat = action.a_lat
     a_lon = action.a_lon
 
-     v = veh.state.v
-     ϕ = veh.state.posF.ϕ
+    v = veh.state.v
+    ϕ = veh.state.posF.ϕ
     ds = v*cos(ϕ)
-     t = veh.state.posF.t
+    t = veh.state.posF.t
     dt = v*sin(ϕ)
 
     ΔT² = ΔT*ΔT
@@ -78,9 +82,8 @@ function AutomotiveDrivingModels.propagate(veh::Entity{VehicleState, VehicleDef,
     speed₂ = sqrt(dt₂*dt₂ + ds₂*ds₂)
     v₂ = sqrt(dt₂*dt₂ + ds₂*ds₂) # v is the magnitude of the velocity vector
     # ϕ₂ = sign(atan(dt₂, ds₂))*min(abs(atan(dt₂, ds₂)),Δϕ_max) # project to the maximum steering rate
-    ϕ₂ = ds₂ <= 0.4 ? 0 : atan(dt₂, ds₂)
     # ϕ₂ = atan(dt₂, ds₂)
-
+    ϕ₂ = ds₂ <= 0.4 ? 0 : atan(dt₂, ds₂)
 
     roadind = move_along(veh.state.posF.roadind, roadway, Δs)
     footpoint = roadway[roadind]
@@ -122,7 +125,7 @@ function AutomotiveDrivingModels.observe!(driver::BafflingDriver, scene::Scene, 
         fore = get_neighbor_fore_along_right_lane(scene, vehicle_index, roadway, VehicleTargetPointFront(), VehicleTargetPointRear(), VehicleTargetPointFront())
     end
 
-    track_lateral!(driver.mlat, laneoffset, lateral_speed) # receive acceleration from the lateral controller
+    AutomotiveDrivingModels.track_lateral!(driver.mlat, laneoffset, lateral_speed) # receive acceleration from the lateral controller
     track_longitudinal!(driver.mlon, scene, roadway, vehicle_index, fore) # receive acceleration from the longitudinal controller
 
     # println("veh ", egoid, "headway: ", fore.Δs, ", actions: ", rand(driver))

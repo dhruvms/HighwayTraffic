@@ -97,7 +97,7 @@ get_name(::MPCDriver) = "MPCDriver"
     set_desired_speed!(model::MPCDriver, v_des::Float64)
 MPCDriver does not have or need a desired speed parameter
 """
-function set_desired_speed!(model::MPCDriver, v_des::Float64)
+function AutomotiveDrivingModels.set_desired_speed!(model::MPCDriver, v_des::Float64)
     model
 end
 

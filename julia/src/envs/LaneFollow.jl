@@ -12,6 +12,7 @@ include("../agent/agent.jl")
 include("./structures.jl")
 include("./helpers.jl")
 include("../behaviours/mpc_driver.jl")
+include("../behaviours/baffling_drivers.jl")
 include("./traj_overlay.jl")
 
 # TODO: distance_from_end does not make sense for stadium roadways

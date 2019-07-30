@@ -49,7 +49,7 @@ function dict_to_simparams(params::Dict)
     clamp = get(params, "clamp_in_sim", false)
 
     cars_per_lane = Int(ceil(cars/lanes))
-    room = CAR_LENGTH * 2.0
+    room = CAR_LENGTH
     room = stadium ? room / 2.0 : room
     rooms = zeros(lanes, cars_per_lane)
     for l in 1:lanes
@@ -121,10 +121,10 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
         stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
     end
 
-    # t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
-    # ϕ0 = (2 * rand() - 1) * 0.3 # max steering angle
-    t0 = 0.0
-    ϕ0 = 0.0
+    t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
+    ϕ0 = (2 * rand() - 1) * 0.3 # max steering angle
+    # t0 = 0.0
+    # ϕ0 = 0.0
     ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0),
                                                         EgoVehicle(), EGO_ID)
     return Frame([ego]), lane0
@@ -173,10 +173,11 @@ function populate_scene(params::P, roadway::Roadway{Float64},
             v0 *= 0.9
             stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
         end
-        # t0 = (rand() - 0.5) * (2 * DEFAULT_LANE_WIDTH/4.0)
-        # ϕ0 = (2 * rand() - 1) * 0.1
-        t0 = 0.0
-        ϕ0 = 0.0
+
+        t0 = (rand() - 0.5) * (2 * DEFAULT_LANE_WIDTH/4.0)
+        ϕ0 = (2 * rand() - 1) * 0.1
+        # t0 = 0.0
+        # ϕ0 = 0.0
         posF = Frenet(roadway[lane0], s0, t0, ϕ0)
 
         push!(scene, Vehicle(VehicleState(posF, roadway, v0),
@@ -189,41 +190,20 @@ function populate_scene(params::P, roadway::Roadway{Float64},
             catch
                 MONOKAY["color3"]
             end
-        elseif type >= 0.0 && type <= 0.5
-            models[v_num] = Tim2DDriver(params.dt,
-                                    mlon=IntelligentDriverModel(
-                                            ΔT=params.dt,
-                                            s_min=(rand() + 1) * CAR_LENGTH,
-                                            T=(rand() + 1) * 2.0),
-                                    mlat=ProportionalLaneTracker()
+        else
+            models[v_num] = BafflingDriver(params.dt,
+                                    η_coop=rand(),
+                                    η_percept=rand(0.01:0.01:1.5),
+                                    r=rand(0.001:0.001:0.1),
+                                    mlon=BafflingLongitudinalTracker(
+                                        s_min=rand() * 2,
+                                        T=rand() * 1.5
+                                        ),
                                     )
             carcolours[v_num] = try
                 MONOKAI["color4"]
             catch
                 MONOKAY["color4"]
-            end
-        else
-            s_min = (rand() + 1) * CAR_LENGTH
-            T = (rand() + 1) * 2.0
-            models[v_num] = Tim2DDriver(params.dt,
-                                    mlon=IntelligentDriverModel(
-                                            ΔT=params.dt,
-                                            s_min=s_min,
-                                            T=T),
-                                    mlat=ProportionalLaneTracker(),
-                                    mlane=MOBIL(
-                                            params.dt,
-                                            mlon=IntelligentDriverModel(
-                                                    ΔT=params.dt,
-                                                    s_min=s_min,
-                                                    T=T),
-                                            safe_decel=(rand() + 1) * 2.0,
-                                            politeness=rand(0.01:0.01:0.3))
-                                    )
-            carcolours[v_num] = try
-                MONOKAI["color5"]
-            catch
-                MONOKAY["color5"]
             end
         end
         v_des = rand() * (params.v_des - (params.v_des/3.0)) +

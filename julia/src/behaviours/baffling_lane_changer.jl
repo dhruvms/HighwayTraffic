@@ -182,14 +182,12 @@ function AutomotiveDrivingModels.observe!(model::BafflingLaneChanger, scene::Sce
                rear_R.Δs > model.threshold_lane_change_gap_fore # there is space fore
                 model.dir = DIR_RIGHT
                 model.isChangingLane = true
-                println("change lane")
             end
             if left_lane_exists &&
                fore_L.Δs > model.threshold_lane_change_gap_rear && # there is space rear
                rear_L.Δs > model.threshold_lane_change_gap_fore # there is space fore
                 model.dir = DIR_LEFT
                 model.isChangingLane = true
-                println("change lane")
             end
         else
             # println("but keep the lane")
