@@ -138,7 +138,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
     models = Dict{Int, DriverModel}()
 
     push!(scene, Vehicle(ego))
-    carcolours[EGO_ID] = COLOR_CAR_EGO
+    carcolours[EGO_ID] = HSL(198, 0.7, 0.66)
 
     v_num = params.ego_pos == -1 ? 1 : EGO_ID + 1
     for i in 1:(params.cars)
@@ -191,20 +191,19 @@ function populate_scene(params::P, roadway::Roadway{Float64},
                 MONOKAY["color3"]
             end
         else
+            η_coop = rand()
+            η_percept = rand(0.01:0.01:1.5)
             models[v_num] = BafflingDriver(params.dt,
-                                    η_coop=rand(),
-                                    η_percept=rand(0.01:0.01:1.5),
+                                    η_coop=η_coop,
+                                    η_percept=η_percept,
                                     r=rand(0.001:0.001:0.1),
                                     mlon=BafflingLongitudinalTracker(
                                         s_min=rand() * 2,
                                         T=rand() * 1.5
                                         ),
                                     )
-            carcolours[v_num] = try
-                MONOKAI["color4"]
-            catch
-                MONOKAY["color4"]
-            end
+            carcolours[v_num] = HSL(44, (η_coop * 0.5) + 0.5,
+                                map_to_range(η_percept, 0.01, 1.5, 0.5, 1.0))
         end
         v_des = rand() * (params.v_des - (params.v_des/3.0)) +
                                                             (params.v_des/3.0)
@@ -218,7 +217,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
     push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
                                                     VehicleDef(), 101))
     models[101] = ProportionalSpeedTracker()
-    carcolours[101] = OFFICETHEME["color3"] # red
+    carcolours[101] = HSL(0, 0.94, 0.64)
     AutomotiveDrivingModels.set_desired_speed!(models[101], 0.0)
 
     (scene, models, carcolours)
