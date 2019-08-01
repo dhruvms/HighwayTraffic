@@ -82,9 +82,11 @@ function dict_to_simparams(params::Dict)
     t_cost = get(params, "t_cost", 10000.0)
     deadend_cost = get(params, "end_cost", 1000.0)
 
-    costs = [j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost]
+    # costs = [j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost]
+    costs = [v_cost, ϕ_cost, t_cost, deadend_cost]
     costs = costs ./ sum(costs)
-    j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost = costs
+    # j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost = costs
+    v_cost, ϕ_cost, t_cost, deadend_cost = costs
 
     EnvParams(length, lanes, cars, dt, max_ticks, rooms, stadium, change, both,
                 fov, beta, clamp,
@@ -205,8 +207,9 @@ function populate_scene(params::P, roadway::Roadway{Float64},
             carcolours[v_num] = HSL(44, (η_coop * 0.5) + 0.5,
                                 map_to_range(η_percept, 0.01, 1.5, 0.5, 1.0))
         end
-        v_des = rand() * (params.v_des - (params.v_des/3.0)) +
-                                                            (params.v_des/3.0)
+        # v_des = rand() * (params.v_des - (params.v_des/3.0)) +
+        #                                                     (params.v_des/3.0)
+        v_des = (rand() * 4.0) + 1.0
         AutomotiveDrivingModels.set_desired_speed!(models[v_num], v_des)
         v_num += 1
     end

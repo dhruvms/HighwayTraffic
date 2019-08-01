@@ -139,17 +139,16 @@ function reward(env::EnvState, action::Vector{Float64},
     ego_proj = Frenet(ego.state.state.posG,
                         env.roadway[true_lanetag], env.roadway)
 
-    reward = 1.0
-    # action cost
-    reward -= env.params.j_cost * abs(action[1])
-    reward -= env.params.δdot_cost * abs(action[2])
-    reward -= env.params.a_cost * abs(ego.state.a)
+    reward = 0.0
+    # # action cost
+    # reward -= env.params.j_cost * abs(action[1])
+    # reward -= env.params.δdot_cost * abs(action[2])
+    # reward -= env.params.a_cost * abs(ego.state.a)
     # desired velocity cost
-    reward -= env.params.v_cost * abs(
-                    (ego.state.state.v - env.params.v_des) / env.params.v_des)
+    reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
     # lane follow cost
-    reward -= env.params.t_cost * abs(ego_proj.t) / DEFAULT_LANE_WIDTH
-    reward -= env.params.ϕ_cost * abs(ego_proj.ϕ)
+    reward -= env.params.t_cost * abs(ego_proj.t)
+    reward -= env.params.ϕ_cost * abs(ego_proj.ϕ) * in_lane
     # distance to deadend
     if in_lane
         reward += 1.0
@@ -257,7 +256,7 @@ function step!(env::EnvState, action::Vector{Float32})
 end
 
 function save_gif(env::EnvState, filename::String="default.gif")
-    framerate = Int(1.0/env.params.dt)
+    framerate = Int(1.0/env.params.dt) * 2
     frames = Reel.Frames(MIME("image/png"), fps=framerate)
 
     cam = CarFollowCamera(EGO_ID, 20.0)
