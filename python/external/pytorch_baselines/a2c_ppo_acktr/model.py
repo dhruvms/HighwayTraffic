@@ -203,13 +203,11 @@ class CNNBase(NNBase):
         self.conv_net = nn.Sequential(
             nn.Conv2d(self.channels*nstack, 32, (9, 3), stride=(4, 1)),
             nn.Tanh(), Flatten())
-        if nstack == 1:
-            self.ego = nn.Sequential(
-                nn.Linear(self.ego_dim, 32), nn.Tanh())
-        else:
+        self.ego = None
+        if nstack > 1:
             self.ego = nn.Sequential(
                 nn.Conv1d(nstack, 1, 3), nn.Tanh(), Flatten(),
-                nn.Linear((self.ego_dim - 2), 32), nn.Tanh())
+                nn.Linear((self.ego_dim - 2), self.ego_dim), nn.Tanh())
 
         self.actor_others = nn.Sequential(
             nn.Linear(32 * 24 * 1, 64), nn.Tanh(),
@@ -219,14 +217,14 @@ class CNNBase(NNBase):
             nn.Linear(64, hidden_size), nn.Tanh())
 
         self.actor = nn.Sequential(
-            nn.Linear(hidden_size + 32, 64), nn.Tanh(),
+            nn.Linear(hidden_size + self.ego_dim, 64), nn.Tanh(),
             nn.Linear(64, hidden_size), nn.Tanh())
 
         init_ = lambda m: init(m, nn.init.xavier_uniform_, lambda x: nn.init.
                                constant_(x, 0))
 
         self.critic = nn.Sequential(
-            nn.Linear(hidden_size + 32, 64), nn.Tanh(),
+            nn.Linear(hidden_size + self.ego_dim, 64), nn.Tanh(),
             nn.Linear(64, 1))
 
         self.train()
@@ -237,7 +235,10 @@ class CNNBase(NNBase):
 
         # common
         others = self.conv_net(inputs)
-        ego = self.ego(ego_vec)
+        if self.ego is not None:
+            ego = self.ego(ego_vec)
+        else:
+            ego = ego_vec
 
         actor_others = self.actor_others(others)
         critic_others = self.critic_others(others)
