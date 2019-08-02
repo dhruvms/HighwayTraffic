@@ -112,7 +112,7 @@ function is_terminal(env::EnvState; init::Bool=false)
     ego = get_by_id(env.ego, EGO_ID)
     road_proj = proj(ego.state.state.posG, env.roadway)
 
-    done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
+    # done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
     done = done || (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) # off roadway
     done = done || is_crash(env, init=init)
     final_r -= done * 100.0
@@ -255,7 +255,7 @@ function step!(env::EnvState, action::Vector{Float32})
     (o, r, terminal, info, copy(env))
 end
 
-function save_gif(env::EnvState, filename::String="default.gif")
+function save_gif(env::EnvState, filename::String="default.mp4")
     framerate = Int(1.0/env.params.dt) * 2
     frames = Reel.Frames(MIME("image/png"), fps=framerate)
 
@@ -275,7 +275,7 @@ function save_gif(env::EnvState, filename::String="default.gif")
         goal = Frenet(target_roadind, env.roadway)
         traj = get_mpc_trajectory(env.mpc, env.scene, env.roadway, EGO_ID,
                                     ego_proj, ego.state.v, goal)
-        traj_overlay = TrajOverlay(traj)
+        # traj_overlay = TrajOverlay(traj)
 
         action_state = reshape(env.action_state, 4, :)'
         action_state = action_state[frame_index, :]
@@ -288,7 +288,7 @@ function save_gif(env::EnvState, filename::String="default.gif")
         action_overlay = TextOverlay(text=[jerk_text, δrate_text,
                             acc_text, δ_text, v_text, lane_text], font_size=14)
 
-        push!(frames, render(scene, env.roadway, [action_overlay, traj_overlay], cam=cam, car_colors=env.colours))
+        push!(frames, render(scene, env.roadway, [action_overlay], cam=cam, car_colors=env.colours))
     end
     Reel.write(filename, frames)
 end

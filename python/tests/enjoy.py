@@ -28,9 +28,9 @@ render_func = get_render_func(env)
 timestr = time.strftime("%Y%m%d-%H%M%S")
 change = args.change * "-Change" + (not args.change) * "-Follow"
 cars = "-{}cars".format(args.cars)
-gifdir = args.load_dir + args.algo + '/gifs/' + args.env_name.lower() + change.lower() + cars.lower() + '/' + timestr + '/'
-if not os.path.exists(gifdir):
-    os.makedirs(gifdir)
+viddir = args.load_dir + args.algo + '/vids/' + args.env_name.lower() + change.lower() + cars.lower() + '/' + timestr + '/'
+if not os.path.exists(viddir):
+    os.makedirs(viddir)
 
 # We need to use the same statistics for normalization as used in training
 actor_critic, ob_rms = \
@@ -49,7 +49,7 @@ masks = torch.zeros(1, 1)
 eval_reward = 0.0
 solved = 0
 for episode in range(1, args.eval_episodes+1):
-    filename = gifdir + 'test_%d.gif' % (episode)
+    filename = viddir + 'test_%d.mp4' % (episode)
     obs = env.reset()
     ep_reward = 0.0
     for t in range(1, args.max_steps+1):
@@ -68,7 +68,7 @@ for episode in range(1, args.eval_episodes+1):
         if terminal or t == args.max_steps:
             if terminal:
                 solved += 1
-            default_filename = "eval_ep.gif"
+            default_filename = "eval_ep.mp4"
             try:
                 os.rename(default_filename, filename)
             except FileNotFoundError:

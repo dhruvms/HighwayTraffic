@@ -214,7 +214,9 @@ function populate_scene(params::P, roadway::Roadway{Float64},
         v_num += 1
     end
 
-    s_deadend = maximum(params.rooms) + (4 * rand() + 1) * params.length/10.0
+    ego_lane = Int(params.lanes - (params.ego_pos % params.lanes))
+    ego_s = params.rooms[ego_lane, Int(ceil(params.ego_pos/params.lanes))]
+    s_deadend = ego_s + (120.0 * rand() + 30.0)
     lane_deadend = get_lane(roadway, ego.state.state)
     posF = Frenet(roadway[lane_deadend.tag], s_deadend, 0.0, 0.0)
     push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),

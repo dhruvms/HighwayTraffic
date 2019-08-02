@@ -112,7 +112,7 @@ class ZMQEnv(gym.Env):
 
         return obs
 
-    def render(self, filename="default.gif"):
+    def render(self, filename="default.mp4"):
         data = self._conn.sendreq({"cmd": "render", "filename": filename})
 
     def step(self, action):
@@ -130,8 +130,8 @@ class ZMQEnv(gym.Env):
             self.ep_count += 1
 
         if data["done"] and self.params["eval"]:
-            filename = "eval_ep.gif"
-            print("[Py-INFO] Render GIF %s from Python ZMQ env." % (filename))
+            filename = "eval_ep.mp4"
+            print("[Py-INFO] Render video %s from Python ZMQ env." % (filename))
             self.render(filename)
 
         obs = data["obs"]
