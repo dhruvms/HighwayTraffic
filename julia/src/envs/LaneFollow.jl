@@ -241,7 +241,7 @@ function step!(env::EnvState, action::Vector{Float32})
     terminal, final_r = is_terminal(env)
 
     r = reward(env, action, deadend, Bool(in_lane))
-    r -= 100.0 * neg_v
+    r -= 10.0 * neg_v
     if Bool(terminal)
         r += final_r
     end
