@@ -5,10 +5,8 @@ from a2c_ppo_acktr import utils
 from a2c_ppo_acktr.envs import make_vec_envs
 
 
-def evaluate(actor_critic, ob_rms, env_name, seed, num_processes, eval_log_dir,
-             device):
-    eval_envs = make_vec_envs(env_name, seed + num_processes, num_processes,
-                              None, eval_log_dir, device, True)
+def evaluate(actor_critic, ob_rms, args, eval_log_dir, device):
+    eval_envs = make_vec_envs(args, device, True)
 
     vec_norm = utils.get_vec_normalize(eval_envs)
     if vec_norm is not None:
@@ -19,8 +17,9 @@ def evaluate(actor_critic, ob_rms, env_name, seed, num_processes, eval_log_dir,
 
     obs = eval_envs.reset()
     eval_recurrent_hidden_states = torch.zeros(
-        num_processes, actor_critic.recurrent_hidden_state_size, device=device)
-    eval_masks = torch.zeros(num_processes, 1, device=device)
+                args.num_processes, actor_critic.recurrent_hidden_state_size,
+                device=device)
+    eval_masks = torch.zeros(args.num_processes, 1, device=device)
 
     while len(eval_episode_rewards) < 10:
         with torch.no_grad():
@@ -44,5 +43,7 @@ def evaluate(actor_critic, ob_rms, env_name, seed, num_processes, eval_log_dir,
 
     eval_envs.close()
 
-    print(" Evaluation using {} episodes: mean reward {:.5f}\n".format(
-        len(eval_episode_rewards), np.mean(eval_episode_rewards)))
+    print(" Evaluation using {} episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n".format(
+        len(eval_episode_rewards), np.mean(eval_episode_rewards),
+        np.median(eval_episode_rewards), np.min(eval_episode_rewards),
+        np.max(eval_episode_rewards)))

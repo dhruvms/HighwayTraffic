@@ -76,12 +76,12 @@ class ZMQEnv(gym.Env):
         self.zmq = True
         self.ip = ip
         self.port = port
-        print("[Py-INFO] Starting Julia subprocess and ZMQ Connection at %s:%d."
-                    % (self.ip, self.port))
+        # print("[Py-INFO] Starting Julia subprocess and ZMQ Connection at %s:%d."
+        #             % (self.ip, self.port))
 
     def reset(self, args_dict=None):
         if args_dict is not None:
-            print("[Py-INFO] Reset with dictionary!")
+            # print("[Py-INFO] Reset with dictionary!")
             self.params = vars(args_dict)
 
         if not self.zmq:
@@ -131,7 +131,7 @@ class ZMQEnv(gym.Env):
 
         if data["done"] and self.params["eval"]:
             filename = "eval_ep.mp4"
-            print("[Py-INFO] Render video %s from Python ZMQ env." % (filename))
+            # print("[Py-INFO] Render video %s from Python ZMQ env." % (filename))
             self.render(filename)
 
         obs = data["obs"]

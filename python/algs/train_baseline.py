@@ -104,7 +104,7 @@ def main():
 
         if args.use_linear_lr_decay:
             # decrease learning rate linearly
-            utils.update_linear_schedule(
+            lr = utils.update_linear_schedule(
                 agent.optimizer, j, num_updates,
                 agent.optimizer.lr if args.algo == "acktr" else args.lr)
 
@@ -184,8 +184,7 @@ def main():
         if (args.eval_interval is not None and len(episode_rewards) > 1
                 and j % args.eval_interval == 0):
             ob_rms = utils.get_vec_normalize(envs).ob_rms
-            evaluate(actor_critic, ob_rms, args.env_name, args.seed,
-                     args.num_processes, eval_log_dir, device)
+            evaluate(actor_critic, ob_rms, args, eval_log_dir, device)
 
     envs.close()
 
