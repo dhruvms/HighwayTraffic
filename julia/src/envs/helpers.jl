@@ -67,9 +67,9 @@ function dict_to_simparams(params::Dict)
     if lanes == 1
         o_dim = ego_dim + (2 * other_dim) * (cars > 1)
     elseif lanes == 2
-        if change
-            ego_pos = rand(1:2:cars)
-        end
+        # if change
+        #     ego_pos = rand(1:2:cars)
+        # end
         o_dim = ego_dim + (4 * other_dim) * (cars > 1)
     else
         o_dim = ego_dim + (6 * other_dim) * (cars > 1)
@@ -128,7 +128,7 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     ϕ0 = (2 * rand() - 1) * 0.3 # max steering angle
     # t0 = 0.0
     # ϕ0 = 0.0
-    ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0),
+    ego = Entity(AgentState(roadway, v=0.0, s=s0, t=t0, ϕ=ϕ0, lane=lane0),
                                                         EgoVehicle(), EGO_ID)
     return Frame([ego]), lane0
 end
@@ -141,7 +141,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
     models = Dict{Int, DriverModel}()
 
     push!(scene, Vehicle(ego))
-    carcolours[EGO_ID] = HSL(198, 0.7, 0.66)
+    carcolours[EGO_ID] = COLOR_CAR_EGO
 
     v_num = params.ego_pos == -1 ? 1 : EGO_ID + 1
     for i in 1:(params.cars)
@@ -183,7 +183,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
         # ϕ0 = 0.0
         posF = Frenet(roadway[lane0], s0, t0, ϕ0)
 
-        push!(scene, Vehicle(VehicleState(posF, roadway, v0),
+        push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
                                                         VehicleDef(), v_num))
         if type < 0.0
             models[v_num] = MPCDriver(params.dt)
@@ -205,8 +205,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
                                         T=rand() * 1.5
                                         ),
                                     )
-            carcolours[v_num] = HSL(44, (η_coop * 0.5) + 0.5,
-                                map_to_range(η_percept, 0.01, 1.5, 0.5, 1.0))
+            carcolours[v_num] = HSV(0, 1.0 - η_coop, 1.0)
         end
         # v_des = rand() * (params.v_des - (params.v_des/3.0)) +
         #                                                     (params.v_des/3.0)
@@ -223,7 +222,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
     push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
                                                     VehicleDef(), 101))
     models[101] = ProportionalSpeedTracker()
-    carcolours[101] = HSL(0, 0.94, 0.64)
+    carcolours[101] = RGB(0, 0, 0)
     AutomotiveDrivingModels.set_desired_speed!(models[101], 0.0)
 
     if params.extra_deadends
@@ -240,7 +239,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
             push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
                                                             VehicleDef(), idx))
             models[idx] = ProportionalSpeedTracker()
-            carcolours[idx] = HSL(0, 0.94, 0.64)
+            carcolours[idx] = RGB(0, 0, 0)
             AutomotiveDrivingModels.set_desired_speed!(models[idx], 0.0)
 
             idx += 1
