@@ -120,7 +120,7 @@ function is_terminal(env::EnvState; init::Bool=false)
 
     max_s = 0.0
     for (i, veh) in enumerate(env.scene)
-        if veh.id != 101 && veh.state.posF.s > max_s
+        if veh.id <= 100 && veh.state.posF.s > max_s
             max_s = veh.state.posF.s
         end
     end
@@ -178,7 +178,7 @@ function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float64},
                 a = ego.state.a
                 δ = ego.state.δ
             end
-        elseif veh.id != 101
+        elseif veh.id <= 100
             state′ = propagate(veh, actions[i], env.roadway, env.params.dt)
             env.scene[findfirst(veh.id, env.scene)] = Entity(state′, veh.def, veh.id)
         end
@@ -197,7 +197,7 @@ function AutomotiveDrivingModels.get_actions!(
 
 
     for (i, veh) in enumerate(scene)
-        if veh.id == EGO_ID || veh.id == 101
+        if veh.id == EGO_ID || veh.id >= 101
             actions[i] = LatLonAccel(0, 0)
             continue
         end

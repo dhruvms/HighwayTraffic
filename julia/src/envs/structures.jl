@@ -17,6 +17,7 @@ mutable struct EnvParams <: AbstractParams
     fov::Int # longitudinal field-of-view
     beta::Bool # beta distribution policy in use
     clamp::Bool # clamp action to limits
+    extra_deadends::Bool # extra deadends in other lanes
 
     ego_pos::Int # location of egovehicle, between [1, cars]
     v_des::Float64 # desired velocity

@@ -47,6 +47,7 @@ function dict_to_simparams(params::Dict)
     fov = get(params, "fov", 50)
     beta = get(params, "beta_dist", false)
     clamp = get(params, "clamp_in_sim", false)
+    extra_deadends = get(params, "extra_deadends", false)
 
     cars_per_lane = Int(ceil(cars/lanes))
     room = CAR_LENGTH
@@ -89,7 +90,7 @@ function dict_to_simparams(params::Dict)
     v_cost, ϕ_cost, t_cost, deadend_cost = costs
 
     EnvParams(length, lanes, cars, dt, max_ticks, rooms, stadium, change, both,
-                fov, beta, clamp,
+                fov, beta, clamp, extra_deadends,
                 ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
                 j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost)
 end
@@ -216,7 +217,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
 
     ego_lane = Int(params.lanes - (params.ego_pos % params.lanes))
     ego_s = params.rooms[ego_lane, Int(ceil(params.ego_pos/params.lanes))]
-    s_deadend = ego_s + (120.0 * rand() + 30.0)
+    s_deadend = ego_s + (40.0 * rand() + 20.0)
     lane_deadend = get_lane(roadway, ego.state.state)
     posF = Frenet(roadway[lane_deadend.tag], s_deadend, 0.0, 0.0)
     push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
@@ -224,6 +225,28 @@ function populate_scene(params::P, roadway::Roadway{Float64},
     models[101] = ProportionalSpeedTracker()
     carcolours[101] = HSL(0, 0.94, 0.64)
     AutomotiveDrivingModels.set_desired_speed!(models[101], 0.0)
+
+    if params.extra_deadends
+        extra_deadends = rand(0:params.lanes-1)
+        idx = 102
+        lanes = [ego_lane]
+        for d in 1:extra_deadends
+            lane = Int(rand(filter(l->l ∉ lanes, 1:params.lanes)))
+            s = rand(params.rooms[lane, :]) + (100.0 * rand() + 100.0)
+
+            ego_tag = get_lane(roadway, ego.state.state)
+            deadend_tag = LaneTag(ego_tag.tag.segment, lane)
+            posF = Frenet(roadway[deadend_tag], s, 0.0, 0.0)
+            push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
+                                                            VehicleDef(), idx))
+            models[idx] = ProportionalSpeedTracker()
+            carcolours[idx] = HSL(0, 0.94, 0.64)
+            AutomotiveDrivingModels.set_desired_speed!(models[idx], 0.0)
+
+            idx += 1
+            push!(lanes, lane)
+        end
+    end
 
     (scene, models, carcolours)
 end
@@ -256,7 +279,7 @@ function get_featurevec(env::EnvState, neighbour::NeighborLongitudinalResult,
                             lane::Int=0, rear::Bool=false)
     if isnothing(neighbour.ind) ||
             abs(neighbour.Δs) > 10 * CAR_LENGTH || # car is too far
-                neighbour.ind == 101 # neighbour is deadend car
+                neighbour.ind >= 101 # neighbour is deadend car
         return zeros(env.params.other_dim)
     else
         veh = env.scene[neighbour.ind]
@@ -395,7 +418,7 @@ function get_occupancy_image(env::EnvState)
                     r_start = max(Int(veh_row - (veh.def.length/2.0 - 1.0)), 1)
                     r_end = min(Int(veh_row + veh.def.length/2.0), fov)
                     veh_rows = r_start:r_end
-                    if veh.id == 101
+                    if veh.id >= 101
                         veh_rows = 1:r_end
                     end
                 else
@@ -403,13 +426,13 @@ function get_occupancy_image(env::EnvState)
                     r_start = max(Int(veh_row - (veh.def.length/2.0 - 1.0)), 1)
                     r_end = min(Int(veh_row + veh.def.length/2.0), fov)
                     veh_rows = r_start:r_end
-                    if veh.id == 101
+                    if veh.id >= 101
                         veh_rows = r_start:fov
                     end
                 end
 
                 occupancy[veh_rows, lane] .= 1
-                if veh.id != 101
+                if veh.id <= 100
                     rel_vel[veh_rows, lane] .= map_to_01(Δv, -env.params.v_des,
                                                             env.params.v_des)
                     rel_lat_disp[veh_rows, lane] .= Δt / DEFAULT_LANE_WIDTH
