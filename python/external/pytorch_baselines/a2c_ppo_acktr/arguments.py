@@ -111,12 +111,8 @@ def get_args():
         default='LaneFollow-v1',
         help='environment to train on (default: PongNoFrameskip-v4)')
     parser.add_argument(
-        '--log-dir',
-        default='/tmp/gym/',
-        help='directory to save agent logs (default: /tmp/gym)')
-    parser.add_argument(
         '--save-dir',
-        default='./trained_models/',
+        default='../data/',
         help='directory to save agent logs (default: ./trained_models/)')
     parser.add_argument(
         '--no-cuda',
@@ -205,6 +201,9 @@ def get_args():
             help='ZMQ Server IP address')
     parser.add_argument('--base-port', type=int, default=9394,
             help='ZMQ Server port number')
+    parser.add_argument('--model-name', nargs='+', type=int,
+            help='Terms to include in model name')
+
 
     args = parser.parse_args()
 

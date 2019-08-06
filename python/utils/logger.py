@@ -6,15 +6,46 @@ import scipy.misc
 from io import BytesIO         # Python 3.x
 from PIL import Image
 
+def get_model_name(args):
+    model_name = ''
+
+    if 0 in args.model_name:
+        model_name = model_name + str(int(args.length)) + '-Length' + '_'
+    if 1 in args.model_name:
+        model_name = model_name + str(int(args.lanes)) + '-Lanes' + '_'
+    if 2 in args.model_name:
+        model_name = model_name + str(int(args.cars)) + '-Cars' + '_'
+    if 3 in args.model_name:
+        model_name = model_name + args.stadium*'Stadium' + (not args.stadium)*'Straight' + '_'
+    if 4 in args.model_name:
+        if args.both:
+            model_name = model_name + 'Both_'
+        else:
+            if args.change:
+                model_name = model_name + 'Change_'
+            else:
+                model_name = model_name + 'Follow_'
+    if 5 in args.model_name:
+        model_name = model_name + args.beta_dist*'Beta' + args.clamp_in_sim*'Clamped-Gaussian' + '_'
+    if 6 in args.model_name:
+        model_name = model_name + 'LR-' + str(args.lr) + '_'
+    if 7 in args.model_name:
+        model_name = model_name + 'Seed-' + str(args.seed) + '_'
+
+    if model_name[-1] == '_':
+        model_name = model_name[:-1]
+
+    return model_name
+
 class Logger(object):
 
     def __init__(self, log_dir):
         """Create a summary writer logging to log_dir."""
-        self.writer = tf.summary.FileWriter(log_dir)
+        self.writer = tf.compat.v1.summary.FileWriter(log_dir)
 
     def scalar_summary(self, tag, value, step):
         """Log a scalar variable."""
-        summary = tf.Summary(value=[tf.Summary.Value(tag=tag, simple_value=value)])
+        summary = tf.compat.v1.Summary(value=[tf.compat.v1.Summary.Value(tag=tag, simple_value=value)])
         self.writer.add_summary(summary, step)
 
     def image_summary(self, tag, images, step):
@@ -27,14 +58,14 @@ class Logger(object):
             scipy.misc.toimage(img).save(s, format="png")
 
             # Create an Image object
-            img_sum = tf.Summary.Image(encoded_image_string=s.getvalue(),
+            img_sum = tf.compat.v1.Summary.Image(encoded_image_string=s.getvalue(),
                                        height=img.shape[0],
                                        width=img.shape[1])
             # Create a Summary value
-            img_summaries.append(tf.Summary.Value(tag='%s/%d' % (tag, i), image=img_sum))
+            img_summaries.append(tf.compat.v1.Summary.Value(tag='%s/%d' % (tag, i), image=img_sum))
 
         # Create and write Summary
-        summary = tf.Summary(value=img_summaries)
+        summary = tf.compat.v1.Summary(value=img_summaries)
         self.writer.add_summary(summary, step)
 
     def histo_summary(self, tag, values, step, bins=1000):
@@ -61,7 +92,7 @@ class Logger(object):
             hist.bucket.append(c)
 
         # Create and write Summary
-        summary = tf.Summary(value=[tf.Summary.Value(tag=tag, histo=hist)])
+        summary = tf.compat.v1.Summary(value=[tf.compat.v1.Summary.Value(tag=tag, histo=hist)])
         self.writer.add_summary(summary, step)
         self.writer.flush()
 
@@ -74,11 +105,11 @@ class Logger(object):
         img = Image.open(s)
         img_ar = np.array(img)
 
-        img_summary = tf.Summary.Image(encoded_image_string=s.getvalue(),
+        img_summary = tf.compat.v1.Summary.Image(encoded_image_string=s.getvalue(),
                                    height=img_ar.shape[0],
                                    width=img_ar.shape[1])
 
-        summary = tf.Summary()
+        summary = tf.compat.v1.Summary()
         summary.value.add(tag=tag, image=img_summary)
         self.writer.add_summary(summary, step)
         self.writer.flush()

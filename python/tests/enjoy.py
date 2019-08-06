@@ -10,8 +10,16 @@ import time
 
 from external import *
 import envs # registers the environment
+from utils import get_model_name
 
 args = get_args()
+if args.model_name is None:
+    args.model_name = [0, 1, 2, 3, 4, 5, 6, 7]
+
+model_name = get_model_name(args)
+expdir = args.save_dir + model_name + '/'
+args.log_dir = expdir + 'logs/'
+args.model_dir = expdir + 'model/'
 
 args.det = not args.non_det
 args.eval = True
@@ -26,15 +34,13 @@ action_space_lo = env.action_space.low
 # Get a render function
 render_func = get_render_func(env)
 timestr = time.strftime("%Y%m%d-%H%M%S")
-change = args.change * "-Change" + (not args.change) * "-Follow"
-cars = "-{}cars".format(args.cars)
-viddir = args.load_dir + args.algo + '/vids/' + args.env_name.lower() + change.lower() + cars.lower() + '/' + timestr + '/'
+viddir = expdir + '/vids/'
 if not os.path.exists(viddir):
     os.makedirs(viddir)
 
 # We need to use the same statistics for normalization as used in training
 actor_critic, ob_rms = \
-            torch.load(os.path.join(args.load_dir, args.algo, args.env_name + change + cars + ".pt"), map_location=device)
+            torch.load(os.path.join(args.model_dir, args.algo + ".pt"), map_location=device)
 actor_critic.eval()
 
 vec_norm = get_vec_normalize(env)

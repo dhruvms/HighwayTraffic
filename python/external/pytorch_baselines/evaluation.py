@@ -5,7 +5,7 @@ from a2c_ppo_acktr import utils
 from a2c_ppo_acktr.envs import make_vec_envs
 
 
-def evaluate(actor_critic, ob_rms, args, eval_log_dir, device):
+def evaluate(actor_critic, ob_rms, args, device, logger, step):
     eval_envs = make_vec_envs(args, device, True)
 
     vec_norm = utils.get_vec_normalize(eval_envs)
@@ -47,3 +47,7 @@ def evaluate(actor_critic, ob_rms, args, eval_log_dir, device):
         len(eval_episode_rewards), np.mean(eval_episode_rewards),
         np.median(eval_episode_rewards), np.min(eval_episode_rewards),
         np.max(eval_episode_rewards)))
+    logger.scalar_summary('eval/mean_reward', np.mean(eval_episode_rewards), step)
+    logger.scalar_summary('eval/median_reward', np.median(eval_episode_rewards), step)
+    logger.scalar_summary('eval/min_reward', np.min(eval_episode_rewards), step)
+    logger.scalar_summary('eval/max_reward', np.max(eval_episode_rewards), step)

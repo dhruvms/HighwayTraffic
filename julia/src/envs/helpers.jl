@@ -128,7 +128,9 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     ϕ0 = (2 * rand() - 1) * 0.3 # max steering angle
     # t0 = 0.0
     # ϕ0 = 0.0
-    ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0),
+    # ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0),
+    #                                                     EgoVehicle(), EGO_ID)
+    ego = Entity(AgentState(roadway, v=0.0, s=s0, t=t0, ϕ=ϕ0, lane=lane0),
                                                         EgoVehicle(), EGO_ID)
     return Frame([ego]), lane0
 end
@@ -183,7 +185,9 @@ function populate_scene(params::P, roadway::Roadway{Float64},
         # ϕ0 = 0.0
         posF = Frenet(roadway[lane0], s0, t0, ϕ0)
 
-        push!(scene, Vehicle(VehicleState(posF, roadway, v0),
+        # push!(scene, Vehicle(VehicleState(posF, roadway, v0),
+        #                                                 VehicleDef(), v_num))
+        push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
                                                         VehicleDef(), v_num))
         if type < 0.0
             models[v_num] = MPCDriver(params.dt)

@@ -18,6 +18,7 @@ import torch.optim as optim
 
 from external import *
 import envs # registers the environment
+from utils import Logger, get_model_name
 
 import multiprocessing as mp
 PYTHON_EXEC = '/home/dsaxena/work/code/python/venvs/p36ws/bin/python'
@@ -26,8 +27,29 @@ mp.set_executable(PYTHON_EXEC)
 # import matplotlib.pyplot as plt
 # fig, ax = plt.subplots(1, 4, sharey=True)
 
+def map_to_range(input, in_start, in_end, out_start, out_end):
+    scale = ((out_end - out_start) / (in_end - in_start))
+    output = out_start + scale * (input - in_start)
+    return output
+
 def main():
     args = get_args()
+
+    if args.model_name is None:
+        args.model_name = [0, 1, 2, 3, 4, 5, 6, 7]
+    model_name = get_model_name(args)
+
+    expdir = args.save_dir + model_name + '/'
+    args.log_dir = expdir + 'logs/'
+    args.model_dir = expdir + 'model/'
+    if not os.path.exists(expdir):
+        os.makedirs(expdir)
+    if not os.path.exists(args.log_dir):
+        os.makedirs(args.log_dir)
+    if not os.path.exists(args.model_dir):
+        os.makedirs(args.model_dir)
+
+    LOGGER = Logger(args.log_dir)
 
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
@@ -38,9 +60,7 @@ def main():
         torch.backends.cudnn.deterministic = True
 
     log_dir = os.path.expanduser(args.log_dir)
-    eval_log_dir = log_dir + "_eval"
     utils.cleanup_log_dir(log_dir)
-    utils.cleanup_log_dir(eval_log_dir)
 
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if args.cuda else "cpu")
@@ -48,8 +68,8 @@ def main():
     # envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
     #                      args.gamma, args.log_dir, device, False)
     envs = make_vec_envs(args, device, False)
-    # action_space_hi = envs.action_space.high
-    # action_space_lo = envs.action_space.low
+    action_high = envs.action_space.high
+    action_low = envs.action_space.low
 
     other_cars = args.cars > 1
     actor_critic = Policy(
@@ -107,6 +127,7 @@ def main():
             lr = utils.update_linear_schedule(
                 agent.optimizer, j, num_updates,
                 agent.optimizer.lr if args.algo == "acktr" else args.lr)
+            LOGGER.scalar_summary('stats/lr', lr, j + 1)
 
         for step in range(args.num_steps):
             # Sample actions
@@ -114,6 +135,26 @@ def main():
                 value, action, action_log_prob, recurrent_hidden_states = actor_critic.act(
                     rollouts.obs[step], rollouts.recurrent_hidden_states[step],
                     rollouts.masks[step])
+                action_np = action.data.cpu().numpy()
+
+                if args.beta_dist:
+                    action_np = map_to_range(action_np, 0.0, 1.0, action_low, action_high)
+
+                jerk = action_np[:, 0]
+                steering_rate = action_np[:, 1]
+                timestep = j * args.num_steps + step
+
+                LOGGER.scalar_summary('actions/jerk_mean', np.mean(jerk), timestep)
+                LOGGER.scalar_summary('actions/jerk_median', np.median(jerk), timestep)
+                LOGGER.scalar_summary('actions/jerk_min', np.min(jerk), timestep)
+                LOGGER.scalar_summary('actions/jerk_max', np.max(jerk), timestep)
+                LOGGER.scalar_summary('actions/jerk_0', jerk[0], timestep)
+
+                LOGGER.scalar_summary('actions/steering_rate_mean', np.mean(steering_rate), timestep)
+                LOGGER.scalar_summary('actions/steering_rate_median', np.median(steering_rate), timestep)
+                LOGGER.scalar_summary('actions/steering_rate_min', np.min(steering_rate), timestep)
+                LOGGER.scalar_summary('actions/steering_rate_max', np.max(steering_rate), timestep)
+                LOGGER.scalar_summary('actions/steering_rate_0', steering_rate[0], timestep)
 
             # # Clamp action to limits
             # torch.clamp_(action[:, 0], action_space_lo[0], action_space_hi[0])
@@ -150,24 +191,25 @@ def main():
                                  args.gae_lambda, args.use_proper_time_limits)
 
         value_loss, action_loss, dist_entropy = agent.update(rollouts)
+        total_loss = value_loss + action_loss - dist_entropy
+        weighted_loss = (value_loss * args.value_loss_coef +
+                            action_loss * args.action_loss_coef -
+                            dist_entropy * args.entropy_coef)
+        LOGGER.scalar_summary('losses/value_loss', value_loss, j + 1)
+        LOGGER.scalar_summary('losses/action_loss', action_loss, j + 1)
+        LOGGER.scalar_summary('losses/dist_entropy', dist_entropy, j + 1)
+        LOGGER.scalar_summary('losses/total_loss', total_loss, j + 1)
+        LOGGER.scalar_summary('losses/weighted_loss', weighted_loss, j + 1)
 
         rollouts.after_update()
 
         # save for every interval-th episode or for the last epoch
         if (j % args.save_interval == 0
-                or j == num_updates - 1) and args.save_dir != "":
-            save_path = os.path.join(args.save_dir, args.algo)
-            try:
-                os.makedirs(save_path)
-            except OSError:
-                pass
-
-            change = args.change * "-Change" + (not args.change) * "-Follow"
-            cars = "-{}cars".format(args.cars)
+                or j == num_updates - 1) and args.model_dir != "":
             torch.save([
                 actor_critic,
                 getattr(utils.get_vec_normalize(envs), 'ob_rms', None)
-            ], os.path.join(save_path, args.env_name + change + cars + ".pt"))
+            ], os.path.join(args.model_dir, args.algo + ".pt"))
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             total_num_steps = (j + 1) * args.num_processes * args.num_steps
@@ -181,10 +223,21 @@ def main():
                         np.max(episode_rewards), dist_entropy, value_loss,
                         action_loss))
 
+            LOGGER.scalar_summary('rewards/mean', np.mean(episode_rewards), total_num_steps)
+            LOGGER.scalar_summary('rewards/median', np.median(episode_rewards), total_num_steps)
+            LOGGER.scalar_summary('rewards/min', np.min(episode_rewards), total_num_steps)
+            LOGGER.scalar_summary('rewards/max', np.max(episode_rewards), total_num_steps)
+
+            # for tag, value in actor_critic.named_parameters():
+            #     tag = tag.replace('.', '/')
+            #     LOGGER.histo_summary(tag, value.data.cpu().numpy(), total_num_steps)
+            #     LOGGER.histo_summary(tag+'/grad', value.grad.data.cpu().numpy(), total_num_steps)
+
         if (args.eval_interval is not None and len(episode_rewards) > 1
                 and j % args.eval_interval == 0):
+            total_num_steps = (j + 1) * args.num_processes * args.num_steps
             ob_rms = utils.get_vec_normalize(envs).ob_rms
-            evaluate(actor_critic, ob_rms, args, eval_log_dir, device)
+            evaluate(actor_critic, ob_rms, args, device, LOGGER, total_num_steps)
 
     envs.close()
 

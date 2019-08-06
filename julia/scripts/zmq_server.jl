@@ -52,7 +52,11 @@ function process!(env::EnvState, msg::Dict{String, T}) where T
 end
 
 function run_env_server(ip, port, env::EnvState)
-    conn = ZMQTransport(ip, port, ZMQ.REP, true)
+    conn = try
+        ZMQTransport(ip, port, ZMQ.REP, true)
+    catch
+        return
+    end
     @info("running server: ", ip, port)
     while true
         msg = JSON.parse(recvreq(conn))
