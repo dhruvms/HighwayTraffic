@@ -34,7 +34,7 @@ action_space_lo = env.action_space.low
 # Get a render function
 render_func = get_render_func(env)
 timestr = time.strftime("%Y%m%d-%H%M%S")
-viddir = expdir + '/vids/'
+viddir = expdir + '/vids/' + timestr + '/'
 if not os.path.exists(viddir):
     os.makedirs(viddir)
 

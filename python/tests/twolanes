@@ -4,19 +4,19 @@ screen -t proc1
 stuff "cd ../algs^M"
 stuff "p35ws^M"
 
-stuff "python train_baseline.py --env-name LaneFollow-v1 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 20 --num-steps 128 --num-mini-batch 32 --log-interval 1 --use-linear-lr-decay --entropy-coef 0.01 --cars 30 --base-port 9300 --length 1000.0 --lanes 2 --change --clamp-in-sim --occupancy --gamma 0.95 --eval-interval 100^M"
+stuff "python train_baseline.py --env-name LaneFollow-v1 --algo ppo --use-gae --lr 5e-4 --value-loss-coef 0.5 --num-processes 20 --num-steps 128 --log-interval 1 --use-linear-lr-decay --entropy-coef 0.0 --cars 30 --base-port 9300 --length 1000.0 --lanes 2 --change --beta-dist --occupancy --gamma 0.9 --eval-interval 100^M"
 stuff "kill -9 $(pgrep -f 'port 930')^M"
 stuff "kill -9 $(pgrep -f 'port 931')^M"
 
-stuff "python train_baseline.py --env-name LaneFollow-v1 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 20 --num-steps 128 --num-mini-batch 32 --log-interval 1 --use-linear-lr-decay --entropy-coef 0.01 --cars 31 --base-port 9300 --length 1000.0 --lanes 2 --change --clamp-in-sim --occupancy --gamma 0.9 --v-cost 5000.0 --eval-interval 100^M"
+stuff "python train_baseline.py --env-name LaneFollow-v1 --algo ppo --use-gae --lr 2.5e-4 --value-loss-coef 0.5 --num-processes 20 --num-steps 128 --log-interval 1 --use-linear-lr-decay --entropy-coef 0.0 --cars 31 --base-port 9300 --length 1000.0 --lanes 2 --change --beta-dist --occupancy --gamma 0.9 --eval-interval 100^M"
 stuff "kill -9 $(pgrep -f 'port 930')^M"
 stuff "kill -9 $(pgrep -f 'port 931')^M"
 
-stuff "python train_baseline.py --env-name LaneFollow-v1 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 20 --num-steps 128 --num-mini-batch 32 --log-interval 1 --use-linear-lr-decay --entropy-coef 0.0 --cars 32 --base-port 9400 --length 1000.0 --lanes 2 --change --beta-dist --occupancy --gamma 0.95 --eval-interval 100^M"
+stuff "python train_baseline.py --env-name LaneFollow-v1 --algo ppo --use-gae --lr 5e-4 --value-loss-coef 0.5 --num-processes 20 --num-steps 128 --log-interval 1 --use-linear-lr-decay --entropy-coef 0.0 --cars 32 --base-port 9400 --length 1000.0 --lanes 2 --change --beta-dist --occupancy --gamma 0.9 --eval-interval 100 --seed 42^M"
 stuff "kill -9 $(pgrep -f 'port 940')^M"
 stuff "kill -9 $(pgrep -f 'port 941')^M"
 
-stuff "python train_baseline.py --env-name LaneFollow-v1 --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 0.5 --num-processes 20 --num-steps 128 --num-mini-batch 32 --log-interval 1 --use-linear-lr-decay --entropy-coef 0.0 --cars 33 --base-port 9400 --length 1000.0 --lanes 2 --change --beta-dist --occupancy --gamma 0.9 --v-cost 5000.0 --eval-interval 100^M"
+stuff "python train_baseline.py --env-name LaneFollow-v1 --algo ppo --use-gae --lr 2.5e-4 --value-loss-coef 0.5 --num-processes 20 --num-steps 128 --log-interval 1 --use-linear-lr-decay --entropy-coef 0.0 --cars 33 --base-port 9400 --length 1000.0 --lanes 2 --change --beta-dist --occupancy --gamma 0.9 --eval-interval 100 --seed 42^M"
 stuff "kill -9 $(pgrep -f 'port 940')^M"
 stuff "kill -9 $(pgrep -f 'port 941')^M"
 

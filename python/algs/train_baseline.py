@@ -135,26 +135,6 @@ def main():
                 value, action, action_log_prob, recurrent_hidden_states = actor_critic.act(
                     rollouts.obs[step], rollouts.recurrent_hidden_states[step],
                     rollouts.masks[step])
-                action_np = action.data.cpu().numpy()
-
-                if args.beta_dist:
-                    action_np = map_to_range(action_np, 0.0, 1.0, action_low, action_high)
-
-                jerk = action_np[:, 0]
-                steering_rate = action_np[:, 1]
-                timestep = j * args.num_steps + step
-
-                LOGGER.scalar_summary('actions/jerk_mean', np.mean(jerk), timestep)
-                LOGGER.scalar_summary('actions/jerk_median', np.median(jerk), timestep)
-                LOGGER.scalar_summary('actions/jerk_min', np.min(jerk), timestep)
-                LOGGER.scalar_summary('actions/jerk_max', np.max(jerk), timestep)
-                LOGGER.scalar_summary('actions/jerk_0', jerk[0], timestep)
-
-                LOGGER.scalar_summary('actions/steering_rate_mean', np.mean(steering_rate), timestep)
-                LOGGER.scalar_summary('actions/steering_rate_median', np.median(steering_rate), timestep)
-                LOGGER.scalar_summary('actions/steering_rate_min', np.min(steering_rate), timestep)
-                LOGGER.scalar_summary('actions/steering_rate_max', np.max(steering_rate), timestep)
-                LOGGER.scalar_summary('actions/steering_rate_0', steering_rate[0], timestep)
 
             # # Clamp action to limits
             # torch.clamp_(action[:, 0], action_space_lo[0], action_space_hi[0])
@@ -195,11 +175,6 @@ def main():
         weighted_loss = (value_loss * args.value_loss_coef +
                             action_loss * args.action_loss_coef -
                             dist_entropy * args.entropy_coef)
-        LOGGER.scalar_summary('losses/value_loss', value_loss, j + 1)
-        LOGGER.scalar_summary('losses/action_loss', action_loss, j + 1)
-        LOGGER.scalar_summary('losses/dist_entropy', dist_entropy, j + 1)
-        LOGGER.scalar_summary('losses/total_loss', total_loss, j + 1)
-        LOGGER.scalar_summary('losses/weighted_loss', weighted_loss, j + 1)
 
         rollouts.after_update()
 
@@ -223,6 +198,12 @@ def main():
                         np.max(episode_rewards), dist_entropy, value_loss,
                         action_loss))
 
+            LOGGER.scalar_summary('losses/value_loss', value_loss, total_num_steps)
+            LOGGER.scalar_summary('losses/action_loss', action_loss, total_num_steps)
+            LOGGER.scalar_summary('losses/dist_entropy', dist_entropy, total_num_steps)
+            LOGGER.scalar_summary('losses/total_loss', total_loss, total_num_steps)
+            LOGGER.scalar_summary('losses/weighted_loss', weighted_loss, total_num_steps)
+
             LOGGER.scalar_summary('rewards/mean', np.mean(episode_rewards), total_num_steps)
             LOGGER.scalar_summary('rewards/median', np.median(episode_rewards), total_num_steps)
             LOGGER.scalar_summary('rewards/min', np.min(episode_rewards), total_num_steps)
@@ -232,6 +213,26 @@ def main():
             #     tag = tag.replace('.', '/')
             #     LOGGER.histo_summary(tag, value.data.cpu().numpy(), total_num_steps)
             #     LOGGER.histo_summary(tag+'/grad', value.grad.data.cpu().numpy(), total_num_steps)
+
+            action_np = action.data.cpu().numpy()
+
+            if args.beta_dist:
+                action_np = map_to_range(action_np, 0.0, 1.0, action_low, action_high)
+
+            jerk = action_np[:, 0]
+            steering_rate = action_np[:, 1]
+
+            LOGGER.scalar_summary('actions/jerk_mean', np.mean(jerk), total_num_steps)
+            LOGGER.scalar_summary('actions/jerk_median', np.median(jerk), total_num_steps)
+            LOGGER.scalar_summary('actions/jerk_min', np.min(jerk), total_num_steps)
+            LOGGER.scalar_summary('actions/jerk_max', np.max(jerk), total_num_steps)
+            LOGGER.scalar_summary('actions/jerk_0', jerk[0], total_num_steps)
+
+            LOGGER.scalar_summary('actions/steering_rate_mean', np.mean(steering_rate), total_num_steps)
+            LOGGER.scalar_summary('actions/steering_rate_median', np.median(steering_rate), total_num_steps)
+            LOGGER.scalar_summary('actions/steering_rate_min', np.min(steering_rate), total_num_steps)
+            LOGGER.scalar_summary('actions/steering_rate_max', np.max(steering_rate), total_num_steps)
+            LOGGER.scalar_summary('actions/steering_rate_0', steering_rate[0], total_num_steps)
 
         if (args.eval_interval is not None and len(episode_rewards) > 1
                 and j % args.eval_interval == 0):

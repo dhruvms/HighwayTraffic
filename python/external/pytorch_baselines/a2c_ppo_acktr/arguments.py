@@ -158,7 +158,7 @@ def get_args():
         help='change lanes')
     parser.add_argument('--both', action='store_true', default=False,
         help='change or follow')
-    parser.add_argument('--v-des', default=15.0, type=float,
+    parser.add_argument('--v-des', default=5.0, type=float,
         help='Max desired velocity')
     parser.add_argument('--dt', default=0.2, type=float,
         help='Simulation timestep')
@@ -176,9 +176,9 @@ def get_args():
         help='Steering rate cost')
     parser.add_argument('--a-cost', default=100.0, type=float,
         help='Acceleration cost')
-    parser.add_argument('--v-cost', default=1000.0, type=float,
+    parser.add_argument('--v-cost', default=5000.0, type=float,
         help='Desired velocity deviation cost')
-    parser.add_argument('--phi-cost', default=500.0, type=float,
+    parser.add_argument('--phi-cost', default=1000.0, type=float,
         help='Lane heading deviation cost')
     parser.add_argument('--t-cost', default=10000.0, type=float,
         help='Lane lateral displacement cost')

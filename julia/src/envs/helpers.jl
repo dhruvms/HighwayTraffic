@@ -50,14 +50,14 @@ function dict_to_simparams(params::Dict)
     extra_deadends = get(params, "extra_deadends", false)
 
     cars_per_lane = Int(ceil(cars/lanes))
-    room = CAR_LENGTH
+    room = CAR_LENGTH * 1.1
     room = stadium ? room / 2.0 : room
     rooms = zeros(lanes, cars_per_lane)
     for l in 1:lanes
         rooms[l, :] = cumsum((rand(cars_per_lane) .+ 1) * room)
     end
 
-    v_des = get(params, "v_des", 15.0)
+    v_des = get(params, "v_des", 5.0)
     ego_dim = get(params, "ego_dim", 9)
     other_dim = get(params, "other_dim", 7)
     occupancy = get(params, "occupancy", false)
@@ -78,8 +78,8 @@ function dict_to_simparams(params::Dict)
     j_cost = get(params, "j_cost", 1.0)
     δdot_cost = get(params, "d_cost", 10.0)
     a_cost = get(params, "a_cost", 100.0)
-    v_cost = get(params, "v_cost", 1000.0)
-    ϕ_cost = get(params, "phi_cost", 500.0)
+    v_cost = get(params, "v_cost", 5000.0)
+    ϕ_cost = get(params, "phi_cost", 1000.0)
     t_cost = get(params, "t_cost", 10000.0)
     deadend_cost = get(params, "end_cost", 1000.0)
 
@@ -199,7 +199,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
             end
         else
             η_coop = rand()
-            η_percept = rand(0.01:0.01:1.5)
+            η_percept = rand(0.01:0.01:1.0)
             models[v_num] = BafflingDriver(params.dt,
                                     η_coop=η_coop,
                                     η_percept=η_percept,
@@ -463,7 +463,7 @@ end
 function is_crash(env::E; init::Bool=false) where E <: AbstractEnv
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego =   try
-                get_by_id(env.ego, EGO_ID)
+                Vehicle(get_by_id(env.ego, EGO_ID))
             catch
                 nothing
             end
@@ -471,7 +471,7 @@ function is_crash(env::E; init::Bool=false) where E <: AbstractEnv
     if !init
         for veh in env.scene
             if veh.id != EGO_ID
-                if !isnothing(ego) && is_colliding(Vehicle(ego), veh)
+                if !isnothing(ego) && is_colliding(ego, veh)
                     return true
                 end
             end

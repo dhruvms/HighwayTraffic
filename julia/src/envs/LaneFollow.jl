@@ -151,7 +151,7 @@ function reward(env::EnvState, action::Vector{Float64},
     reward -= env.params.ϕ_cost * abs(ego_proj.ϕ) * in_lane
     # distance to deadend
     if in_lane
-        reward += 1.0
+        reward += 2.0
         reward += env.params.deadend_cost * deadend
     else
         reward -= env.params.deadend_cost * (1.0 - deadend)
@@ -241,7 +241,7 @@ function step!(env::EnvState, action::Vector{Float32})
     terminal, final_r = is_terminal(env)
 
     r = reward(env, action, deadend, Bool(in_lane))
-    r -= 10.0 * neg_v
+    r -= 2.0 * neg_v
     if Bool(terminal)
         r += final_r
     end
@@ -266,16 +266,9 @@ function save_gif(env::EnvState, filename::String="default.mp4")
     for frame_index in 1:ticks
         scene = env.rec[frame_index-ticks]
         ego = scene[findfirst(EGO_ID, scene)]
-        lane = get_lane(env.roadway, ego.state)
-        true_lanetag = LaneTag(lane.tag.segment, env.init_lane.lane)
-        ego_proj = Frenet(ego.state.posG,
-                            env.roadway[true_lanetag], env.roadway)
-        target_roadind = move_along(ego_proj.roadind, env.roadway,
-                                    CAR_LENGTH * 2.0)
-        goal = Frenet(target_roadind, env.roadway)
-        traj = get_mpc_trajectory(env.mpc, env.scene, env.roadway, EGO_ID,
-                                    ego_proj, ego.state.v, goal)
-        # traj_overlay = TrajOverlay(traj)
+
+        overlays = [TextOverlay(text=["$(veh.id)"], incameraframe=true,
+                            pos=VecE2(veh.state.posG.x-0.7, veh.state.posG.y+0.7)) for veh in scene]
 
         action_state = reshape(env.action_state, 4, :)'
         action_state = action_state[frame_index, :]
@@ -287,8 +280,9 @@ function save_gif(env::EnvState, filename::String="default.mp4")
         lane_text = @sprintf("Target Lane: LaneTag(%d, %d)", env.init_lane.segment, env.init_lane.lane)
         action_overlay = TextOverlay(text=[jerk_text, δrate_text,
                             acc_text, δ_text, v_text, lane_text], font_size=14)
+        push!(overlays, action_overlay)
 
-        push!(frames, render(scene, env.roadway, [action_overlay], cam=cam, car_colors=env.colours))
+        push!(frames, render(scene, env.roadway, overlays, cam=cam, car_colors=env.colours))
     end
     Reel.write(filename, frames)
 end
