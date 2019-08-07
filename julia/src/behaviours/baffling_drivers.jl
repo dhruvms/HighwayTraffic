@@ -63,7 +63,7 @@ function AutomotiveDrivingModels.set_desired_speed!(model::BafflingDriver, v_des
     model
 end
 
-function AutomotiveDrivingModels.propagate(veh::Entity{VehicleState, VehicleDef, Int}, action::LatLonAccel, roadway::Roadway, ΔT::Float64; Δϕ_max::Float64 = 0.4)
+function AutomotiveDrivingModels.propagate(veh::Entity{VehicleState, VehicleDef, Int}, action::LatLonAccel, roadway::Roadway, ΔT::Float64; Δϕ_max::Float64 = 0.6)
     a_lat = action.a_lat
     a_lon = action.a_lon
 
