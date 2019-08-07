@@ -78,7 +78,7 @@ function dict_to_simparams(params::Dict)
     j_cost = get(params, "j_cost", 1.0)
     δdot_cost = get(params, "d_cost", 10.0)
     a_cost = get(params, "a_cost", 100.0)
-    v_cost = get(params, "v_cost", 5000.0)
+    v_cost = get(params, "v_cost", 2500.0)
     ϕ_cost = get(params, "phi_cost", 1000.0)
     t_cost = get(params, "t_cost", 10000.0)
     deadend_cost = get(params, "end_cost", 1000.0)
@@ -205,8 +205,8 @@ function populate_scene(params::P, roadway::Roadway{Float64},
                                     η_percept=η_percept,
                                     r=rand(0.001:0.001:0.1),
                                     mlon=BafflingLongitudinalTracker(
-                                        s_min=rand() * 2,
-                                        T=rand() * 1.5
+                                        s_min=rand() + 1.0,
+                                        T=rand() * 1.5 + 0.5
                                         ),
                                     )
             carcolours[v_num] = HSV(0, 1.0 - η_coop, 1.0)

@@ -14,7 +14,7 @@ from utils import get_model_name
 
 args = get_args()
 if args.model_name is None:
-    args.model_name = [0, 1, 2, 3, 4, 5, 6, 7]
+    args.model_name = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
 model_name = get_model_name(args)
 expdir = args.save_dir + model_name + '/'

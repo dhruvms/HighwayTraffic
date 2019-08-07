@@ -31,6 +31,8 @@ def get_model_name(args):
         model_name = model_name + 'LR-' + str(args.lr) + '_'
     if 7 in args.model_name:
         model_name = model_name + 'Seed-' + str(args.seed) + '_'
+    if 8 in args.model_name:
+        model_name = model_name + 'ValLossCoeff-' + str(args.value_loss_coef) + '_'
 
     if model_name[-1] == '_':
         model_name = model_name[:-1]

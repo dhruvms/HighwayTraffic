@@ -70,6 +70,8 @@ class Policy(nn.Module):
             action = dist.mode()
         else:
             action = dist.sample()
+        action[torch.isnan(action)] = 0.0
+        action[torch.isinf(action)] = 1.0
 
         action_log_probs = dist.log_probs(action)
         dist_entropy = dist.entropy().mean()

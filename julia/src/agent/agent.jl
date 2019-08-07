@@ -123,7 +123,7 @@ function AutomotiveDrivingModels.propagate(
     s = max(0, s) # no back up
     v_ = max(0, v_) # no back up
 
-    if δ ≈ 0.0 # just drive straight
+    if abs(δ) ≤ 1e-9 # just drive straight
         posG = agt.state.posG + polar(s, θ)
     else # drive in circle
         R = L/tan(δ) # turn radius

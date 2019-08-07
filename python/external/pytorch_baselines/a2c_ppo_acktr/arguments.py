@@ -176,7 +176,7 @@ def get_args():
         help='Steering rate cost')
     parser.add_argument('--a-cost', default=100.0, type=float,
         help='Acceleration cost')
-    parser.add_argument('--v-cost', default=5000.0, type=float,
+    parser.add_argument('--v-cost', default=2500.0, type=float,
         help='Desired velocity deviation cost')
     parser.add_argument('--phi-cost', default=1000.0, type=float,
         help='Lane heading deviation cost')
@@ -197,6 +197,8 @@ def get_args():
                         help='Evaluation episodes')
     parser.add_argument('--eval', action='store_true', default=False,
         help='in eval mode or not')
+    parser.add_argument('--log', action='store_true', default=False,
+        help='tensorboard logging')
     parser.add_argument('--ip', type=str, default="127.0.0.1",
             help='ZMQ Server IP address')
     parser.add_argument('--base-port', type=int, default=9394,
