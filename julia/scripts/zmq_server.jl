@@ -35,13 +35,15 @@ function process!(env::EnvState, msg::Dict{String, T}) where T
             respmsg = Dict()
         elseif msg["cmd"] == "reset"
             paramdict = msg["params"]
-            env, obs = reset(paramdict)
+            env′, obs = reset(paramdict)
+            env = copy(env′)
             respmsg = Dict("obs" => obs)
         elseif msg["cmd"] == "step"
             a = parse(Float32, msg["a"])
             δ = parse(Float32, msg["delta"])
             action = [a, δ]
-            obs, rew, done, info, env = step!(env, action)
+            obs, rew, done, info, env′ = step!(env, action)
+            env = copy(env′)
             respmsg = Dict("obs" => obs, "rew" => rew,
                             "done" => done, "info" => info)
         else

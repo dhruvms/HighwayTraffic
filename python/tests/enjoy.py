@@ -55,7 +55,7 @@ masks = torch.zeros(1, 1)
 eval_reward = 0.0
 solved = 0
 for episode in range(1, args.eval_episodes+1):
-    filename = viddir + 'test_%d.mp4' % (episode)
+    filename = viddir + 'test_%d' % (episode)
     obs = env.reset()
     ep_reward = 0.0
     for t in range(1, args.max_steps+1):
@@ -74,16 +74,17 @@ for episode in range(1, args.eval_episodes+1):
         if terminal or t == args.max_steps:
             if terminal:
                 solved += 1
-            default_filename = "eval_ep.mp4"
+            default_filename = 'eval_ep'
             try:
-                os.rename(default_filename, filename)
+                os.rename(default_filename + '.mp4', filename + '.mp4')
+                os.rename(default_filename + '.dat', filename + '.dat')
             except FileNotFoundError:
-                render_func(filename)
+                render_func(filename + '.mp4')
 
             break
 
-    print('EVAL: Episode reward = %f' % (ep_reward))
+    print('Eval: Episode reward = %f' % (ep_reward))
     eval_reward += ep_reward
 
 avg_reward = eval_reward / args.eval_episodes
-print('EVAL: Avg reward = %f | Unsolved = %d' % (avg_reward, solved))
+print('Eval: Avg reward = %f | Unsolved = %d' % (avg_reward, solved))

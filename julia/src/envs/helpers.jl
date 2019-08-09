@@ -40,7 +40,7 @@ function dict_to_simparams(params::Dict)
     lanes = get(params, "lanes", 3)
     cars = get(params, "cars", 30)
     dt = get(params, "dt", 0.2)
-    max_ticks = get(params, "max_steps", 200)
+    max_ticks = get(params, "max_steps", 256)
     stadium = get(params, "stadium", false)
     change = get(params, "change", false)
     both = get(params, "both", false)
@@ -48,6 +48,7 @@ function dict_to_simparams(params::Dict)
     beta = get(params, "beta_dist", false)
     clamp = get(params, "clamp_in_sim", false)
     extra_deadends = get(params, "extra_deadends", false)
+    eval = get(params, "eval", false)
 
     cars_per_lane = Int(ceil(cars/lanes))
     room = CAR_LENGTH * 1.1
@@ -67,9 +68,6 @@ function dict_to_simparams(params::Dict)
     if lanes == 1
         o_dim = ego_dim + (2 * other_dim) * (cars > 1)
     elseif lanes == 2
-        # if change
-        #     ego_pos = rand(1:2:cars)
-        # end
         o_dim = ego_dim + (4 * other_dim) * (cars > 1)
     else
         o_dim = ego_dim + (6 * other_dim) * (cars > 1)
@@ -90,7 +88,7 @@ function dict_to_simparams(params::Dict)
     v_cost, ϕ_cost, t_cost, deadend_cost = costs
 
     EnvParams(length, lanes, cars, dt, max_ticks, rooms, stadium, change, both,
-                fov, beta, clamp, extra_deadends,
+                fov, beta, clamp, extra_deadends, eval,
                 ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
                 j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost)
 end
@@ -124,8 +122,8 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
         stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
     end
 
-    t0 = (DEFAULT_LANE_WIDTH * rand()) - (DEFAULT_LANE_WIDTH/2.0)
-    ϕ0 = (2 * rand() - 1) * 0.3 # max steering angle
+    t0 = (rand() - 0.5) * (DEFAULT_LANE_WIDTH/2.0)
+    ϕ0 = (2 * rand() - 1) * 0.1
     # t0 = 0.0
     # ϕ0 = 0.0
     # ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0),
@@ -179,7 +177,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
             stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
         end
 
-        t0 = (rand() - 0.5) * (2 * DEFAULT_LANE_WIDTH/4.0)
+        t0 = (rand() - 0.5) * (DEFAULT_LANE_WIDTH/2.0)
         ϕ0 = (2 * rand() - 1) * 0.1
         # t0 = 0.0
         # ϕ0 = 0.0

@@ -4,6 +4,7 @@ using AutomotiveDrivingModels
 using AutoViz
 using Reel
 using Printf
+using DelimitedFiles
 
 export reset, step!, save_gif
 export action_space, observation_space, EnvState
@@ -37,16 +38,41 @@ function make_env(params::EnvParams)
         lane = rand(1:params.lanes)
     end
     lanetag = LaneTag(seg, lane)
-
     veh = get_by_id(ego, EGO_ID)
+    ego_proj = Frenet(veh.state.state.posG, roadway[lanetag], roadway)
+
     action_state = [0.0, 0.0, veh.state.a, veh.state.δ]
+    ego_data = Dict{String, Vector{Float64}}(
+                    "deviation" => [abs(ego_proj.t)],
+                    "jerk" => [action_state[1]],
+                    "steer_rate" => [action_state[2]],
+                    "acc" => [action_state[3]],
+                    "vel" => [veh.state.state.v],
+                    "steer_angle" => [action_state[4]])
     scene, models, colours = populate_scene(params, roadway, veh)
     rec = SceneRecord(params.max_ticks, params.dt)
     steps = 0
     mpc = MPCDriver(params.dt)
 
+    in_lane = false
+    lane_ticks = 0
+    victim_id = nothing
+    merge_tick = 0
+    car_data = Dict{Int, Dict{String, Vector{Float64}}}()
+    for (i, veh) in enumerate(scene)
+        if veh.id ≠ EGO_ID && veh.id <= 100
+            car_data[veh.id] = Dict{String, Vector{Float64}}(
+                                    "vel" => [veh.state.v],
+                                    "alat" => [0.0],
+                                    "alon" => [0.0])
+        end
+    end
+
     EnvState(params, roadway, scene, rec, ego, action_state, lanetag, steps,
-                mpc, models, colours)
+                mpc,
+                in_lane, lane_ticks, victim_id,
+                merge_tick, car_data, ego_data,
+                models, colours)
 end
 
 function observe(env::EnvState)
@@ -77,6 +103,17 @@ function burn_in_sim!(env::EnvState; steps::Int=0)
     for step in 1:steps
         get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
         tick!(env, [0.0f0, 0.0f0], other_actions, init=true)
+    end
+
+    if steps > 0 && env.params.eval
+        for (i, veh) in enumerate(env.scene)
+            if veh.id ≠ EGO_ID && veh.id ∈ keys(env.car_data)
+                env.car_data[veh.id] = Dict{String, Vector{Float64}}(
+                                        "vel" => [veh.state.v],
+                                        "alat" => [other_actions[i].a_lat],
+                                        "alon" => [other_actions[i].a_lon])
+            end
+        end
     end
 
     env
@@ -151,10 +188,43 @@ function reward(env::EnvState, action::Vector{Float64},
     reward -= env.params.ϕ_cost * abs(ego_proj.ϕ) * in_lane
     # distance to deadend
     if in_lane
-        reward += 2.0
+        reward += 1.0
         reward += env.params.deadend_cost * deadend
+
+        if env.params.eval
+            if env.in_lane
+                env.lane_ticks += 1
+            else
+                env.in_lane = true
+                env.lane_ticks = 1
+            end
+
+            if env.lane_ticks ≥ 10 && isnothing(env.victim_id)
+                env.merge_tick = env.steps
+                victim = get_neighbor_rear_along_lane(
+                            env.scene, EGO_ID, env.roadway,
+                            VehicleTargetPointFront(), VehicleTargetPointFront(),
+                            VehicleTargetPointRear())
+                if !isnothing(victim.ind)
+                    env.victim_id = victim.ind
+
+                    for car in keys(env.car_data)
+                        if car ≠ env.victim_id
+                            delete!(env.car_data, car)
+                        end
+                    end
+                end
+            end
+        end
     else
         reward -= env.params.deadend_cost * (1.0 - deadend)
+
+        if env.params.eval
+            if env.in_lane
+                env.in_lane = false
+                env.lane_ticks = 0
+            end
+        end
     end
 
     reward
@@ -170,17 +240,40 @@ function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float64},
     for (i, veh) in enumerate(env.scene)
         if veh.id == EGO_ID
             if !init
-                state′, neg_v = propagate(ego, action, env.roadway, env.params.dt)
-                env.scene[findfirst(EGO_ID, env.scene)] = Vehicle(state′)
-                env.ego = Frame([state′])
+                ego′, neg_v = propagate(ego, action, env.roadway, env.params.dt)
+                env.scene[findfirst(EGO_ID, env.scene)] = Vehicle(ego′)
+                env.ego = Frame([ego′])
 
                 ego = get_by_id(env.ego, EGO_ID)
                 a = ego.state.a
                 δ = ego.state.δ
+
+                if env.params.eval
+                    lane = get_lane(env.roadway, ego.state.state)
+
+                    true_lanetag = LaneTag(lane.tag.segment, env.init_lane.lane)
+                    ego_proj = Frenet(ego.state.state.posG,
+                                        env.roadway[true_lanetag], env.roadway)
+
+                    push!(env.ego_data["deviation"], abs(ego_proj.t))
+                    push!(env.ego_data["jerk"], action[1])
+                    push!(env.ego_data["steer_rate"], action[2])
+                    push!(env.ego_data["acc"], a)
+                    push!(env.ego_data["vel"], ego′.state.state.v)
+                    push!(env.ego_data["steer_angle"], δ)
+                end
             end
         elseif veh.id <= 100
             state′ = propagate(veh, actions[i], env.roadway, env.params.dt)
             env.scene[findfirst(veh.id, env.scene)] = Entity(state′, veh.def, veh.id)
+
+            if env.params.eval
+                if veh.id ≠ EGO_ID && veh.id ∈ keys(env.car_data)
+                    push!(env.car_data[veh.id]["vel"], state′.v)
+                    push!(env.car_data[veh.id]["alat"], actions[i].a_lat)
+                    push!(env.car_data[veh.id]["alon"], actions[i].a_lon)
+                end
+            end
         end
     end
 
@@ -227,8 +320,6 @@ function step!(env::EnvState, action::Vector{Float32})
     other_actions = Array{Any}(undef, length(env.scene))
     get_actions!(other_actions, env.scene, env.roadway, env.other_cars)
 
-    ego = get_by_id(env.ego, EGO_ID)
-    s_prev = ego.state.state.posF.s
     env, neg_v = tick!(env, action, other_actions) # move to next state
     update!(env.rec, env.scene)
     env.steps += 1
@@ -239,6 +330,9 @@ function step!(env::EnvState, action::Vector{Float32})
         o, deadend, in_lane = observe(env)
     end
     terminal, final_r = is_terminal(env)
+    if env.params.eval
+        terminal = false
+    end
 
     r = reward(env, action, deadend, Bool(in_lane))
     r -= 2.0 * neg_v
@@ -247,8 +341,6 @@ function step!(env::EnvState, action::Vector{Float32})
     end
 
     ego = get_by_id(env.ego, EGO_ID)
-    s_new = ego.state.state.posF.s
-    # r += 10.0 * (s_new - s_prev)
     info = [ego.state.state.posF.s, ego.state.state.posF.t,
                 ego.state.state.posF.ϕ, ego.state.state.v]
 
@@ -285,6 +377,42 @@ function save_gif(env::EnvState, filename::String="default.mp4")
         push!(frames, render(scene, env.roadway, overlays, cam=cam, car_colors=env.colours))
     end
     Reel.write(filename, frames)
+
+    write_data(env, replace(filename, "mp4" => "dat"))
+end
+
+function write_data(env::EnvState, filename::String="default.dat")
+    if filename == ".dat"
+        return
+    end
+
+    open(filename, "w") do f
+        merge_tick = env.merge_tick
+        steps = env.steps
+        write(f, "$merge_tick\n")
+        write(f, "$steps\n")
+
+        for field in env.ego_data
+            key = field[1]
+            val = field[2]
+            val = reshape(val, (1, length(val)))
+            write(f, "$key,")
+            writedlm(f, val, ",")
+        end
+
+        if length(env.car_data) > 1
+            write(f, "NONE\n")
+        elseif !isnothing(env.victim_id)
+            victim = env.car_data[env.victim_id]
+            for field in victim
+                key = "victim_" * field[1]
+                val = field[2]
+                val = reshape(val, (1, length(val)))
+                write(f, "$key,")
+                writedlm(f, val, ",")
+            end
+        end
+    end
 end
 
 end # module

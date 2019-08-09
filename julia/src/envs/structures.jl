@@ -18,6 +18,7 @@ mutable struct EnvParams <: AbstractParams
     beta::Bool # beta distribution policy in use
     clamp::Bool # clamp action to limits
     extra_deadends::Bool # extra deadends in other lanes
+    eval::Bool # evaluation
 
     ego_pos::Int # location of egovehicle, between [1, cars]
     v_des::Float64 # desired velocity
@@ -49,6 +50,13 @@ mutable struct EnvState <: AbstractEnv
     steps::Int
     mpc::DriverModel # mpc driver model
 
+    in_lane::Bool
+    lane_ticks::Int
+    victim_id::Union{Int, Nothing}
+    merge_tick::Int
+    car_data::Dict{Int, Dict{String, Vector{Float64}}}
+    ego_data::Dict{String, Vector{Float64}}
+
     other_cars::Dict{Int, DriverModel}
     colours::Dict{Int, Colorant}
 
@@ -57,7 +65,10 @@ end
 Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene),
                                     e.rec, e.ego, copy(e.action_state),
                                     e.init_lane, e.steps, e.mpc,
-                                    e.other_cars, e.colours)
+                                    e.in_lane, e.lane_ticks, e.victim_id,
+                                    e.merge_tick,
+                                    copy(e.car_data), copy(e.ego_data),
+                                    copy(e.other_cars), copy(e.colours))
 
 
 action_space(params::EnvParams) = ([-4.0, -0.4], [2.0, 0.4])

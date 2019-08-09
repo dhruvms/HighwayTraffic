@@ -191,7 +191,7 @@ def get_args():
     parser.add_argument('--extra-deadends', action='store_true', default=False,
         help='add deadends in other lanes')
 
-    parser.add_argument('--max-steps', type=int, default=200,
+    parser.add_argument('--max-steps', type=int, default=256,
                         help='Max steps per episode')
     parser.add_argument('--eval-episodes', type=int, default=10,
                         help='Evaluation episodes')
