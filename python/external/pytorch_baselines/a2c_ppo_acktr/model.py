@@ -183,7 +183,8 @@ class NNBase(nn.Module):
 
 class CNNBase(NNBase):
     def __init__(self, num_inputs, recurrent=False, hidden_size=64,
-                        other_cars=None, ego_dim=None, nstack=1):
+                        other_cars=None, ego_dim=None, nstack=1, complex=False,
+                        shared=False):
         super(CNNBase, self).__init__(recurrent, hidden_size, hidden_size)
 
         init_ = lambda m: init(m, nn.init.xavier_uniform_, lambda x: nn.init.
@@ -201,39 +202,82 @@ class CNNBase(NNBase):
                                                 self.ego_channels))
         self.ego_dim = ego_dim
 
-        # common to actor and critic
-        self.conv_net = nn.Sequential(
-            nn.Conv2d(self.channels*nstack, 32, (9, 3), stride=(4, 1)),
-            nn.Tanh(), Flatten())
-        self.ego = None
-        if nstack > 1:
-            self.ego = nn.Sequential(
-                nn.Conv1d(nstack, 1, 3), nn.Tanh(), Flatten(),
-                nn.Linear((self.ego_dim - 2), self.ego_dim), nn.Tanh())
+        self.shared = shared
+        if shared:
+            # common to actor and critic
+            self.conv_net = nn.Sequential(
+                nn.Conv2d(self.channels*nstack, 32, (9, 3), stride=(4, 1)),
+                nn.Tanh(), Flatten(),
+                nn.Linear(32 * 24 * 1, 64), nn.Tanh(),
+                nn.Linear(64, hidden_size), nn.Tanh())
+            self.mlp = nn.Sequential(
+                nn.Linear(hidden_size + self.ego_dim, 64), nn.Tanh(),
+                nn.Linear(64, hidden_size), nn.Tanh())
+            self.critic = nn.Linear(hidden_size, 1)
+        elif complex:
+            # common to actor and critic
+            self.conv_net = nn.Sequential(
+                nn.Conv2d(self.channels*nstack, 32, (8, 1), stride=(4, 1)),
+                nn.Tanh(),
+                nn.Conv2d(32, 64, (4, 1), stride=(2, 3)),
+                nn.Tanh(), Flatten())
+            self.ego = None
+            if nstack > 1:
+                self.ego = nn.Sequential(
+                    nn.Conv1d(nstack, 1, 3), nn.Tanh(), Flatten(),
+                    nn.Linear((self.ego_dim - 2), self.ego_dim), nn.Tanh())
 
-        self.actor_others = nn.Sequential(
-            nn.Linear(32 * 24 * 1, 64), nn.Tanh(),
-            nn.Linear(64, hidden_size), nn.Tanh())
-        self.critic_others = nn.Sequential(
-            nn.Linear(32 * 24 * 1, 64), nn.Tanh(),
-            nn.Linear(64, hidden_size), nn.Tanh())
+            self.actor_others = nn.Sequential(
+                nn.Linear(64 * 11 * 1, 256), nn.Tanh(),
+                nn.Linear(256, 256), nn.Tanh())
+            self.critic_others = nn.Sequential(
+                nn.Linear(64 * 11 * 1, 256), nn.Tanh(),
+                nn.Linear(256, 256), nn.Tanh())
 
-        self.actor = nn.Sequential(
-            nn.Linear(hidden_size + self.ego_dim, 64), nn.Tanh(),
-            nn.Linear(64, hidden_size), nn.Tanh())
+            self.actor = nn.Sequential(
+                nn.Linear(256 + self.ego_dim, 256), nn.Tanh(),
+                nn.Linear(256, hidden_size), nn.Tanh())
 
-        init_ = lambda m: init(m, nn.init.xavier_uniform_, lambda x: nn.init.
-                               constant_(x, 0))
+            self.critic = nn.Sequential(
+                nn.Linear(256 + self.ego_dim, 256), nn.Tanh(),
+                nn.Linear(256, 1))
+        else:
+            # common to actor and critic
+            self.conv_net = nn.Sequential(
+                nn.Conv2d(self.channels*nstack, 32, (9, 3), stride=(4, 1)),
+                nn.Tanh(), Flatten())
+            self.ego = None
+            if nstack > 1:
+                self.ego = nn.Sequential(
+                    nn.Conv1d(nstack, 1, 3), nn.Tanh(), Flatten(),
+                    nn.Linear((self.ego_dim - 2), self.ego_dim), nn.Tanh())
 
-        self.critic = nn.Sequential(
-            nn.Linear(hidden_size + self.ego_dim, 64), nn.Tanh(),
-            nn.Linear(64, 1))
+            self.actor_others = nn.Sequential(
+                nn.Linear(32 * 24 * 1, 64), nn.Tanh(),
+                nn.Linear(64, hidden_size), nn.Tanh())
+            self.critic_others = nn.Sequential(
+                nn.Linear(32 * 24 * 1, 64), nn.Tanh(),
+                nn.Linear(64, hidden_size), nn.Tanh())
+
+            self.actor = nn.Sequential(
+                nn.Linear(hidden_size + self.ego_dim, 64), nn.Tanh(),
+                nn.Linear(64, hidden_size), nn.Tanh())
+
+            self.critic = nn.Sequential(
+                nn.Linear(hidden_size + self.ego_dim, 64), nn.Tanh(),
+                nn.Linear(64, 1))
 
         self.train()
 
     def forward(self, inputs, rnn_hxs, masks):
         ego_vec = inputs[:, self.ego_channels, :self.ego_dim, 0]
         inputs = inputs[:, self.data_channels, :, :]
+
+        if self.shared:
+            others = self.conv_net(inputs)
+            all = torch.cat([others, ego_vec], 1)
+            x = self.mlp(all)
+            return self.critic(x), x, rnn_hxs
 
         # common
         others = self.conv_net(inputs)

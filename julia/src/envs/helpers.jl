@@ -49,6 +49,7 @@ function dict_to_simparams(params::Dict)
     clamp = get(params, "clamp_in_sim", false)
     extra_deadends = get(params, "extra_deadends", false)
     eval = get(params, "eval", false)
+    norm_obs = get(params, "norm_obs", true)
 
     cars_per_lane = Int(ceil(cars/lanes))
     room = CAR_LENGTH * 1.1
@@ -73,22 +74,22 @@ function dict_to_simparams(params::Dict)
         o_dim = ego_dim + (6 * other_dim) * (cars > 1)
     end
 
-    j_cost = get(params, "j_cost", 1.0)
-    δdot_cost = get(params, "d_cost", 10.0)
-    a_cost = get(params, "a_cost", 100.0)
-    v_cost = get(params, "v_cost", 2500.0)
-    ϕ_cost = get(params, "phi_cost", 1000.0)
-    t_cost = get(params, "t_cost", 10000.0)
-    deadend_cost = get(params, "end_cost", 1000.0)
+    j_cost = get(params, "j_cost", 0.001)
+    δdot_cost = get(params, "d_cost", 0.01)
+    a_cost = get(params, "a_cost", 0.1)
+    v_cost = get(params, "v_cost", 2.5)
+    ϕ_cost = get(params, "phi_cost", 1.0)
+    t_cost = get(params, "t_cost", 10.0)
+    deadend_cost = get(params, "end_cost", 1.0)
 
-    # costs = [j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost]
-    costs = [v_cost, ϕ_cost, t_cost, deadend_cost]
-    costs = costs ./ sum(costs)
-    # j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost = costs
-    v_cost, ϕ_cost, t_cost, deadend_cost = costs
+    # # costs = [j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost]
+    # costs = [v_cost, ϕ_cost, t_cost, deadend_cost]
+    # costs = costs ./ sum(costs)
+    # # j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost = costs
+    # v_cost, ϕ_cost, t_cost, deadend_cost = costs
 
     EnvParams(length, lanes, cars, dt, max_ticks, rooms, stadium, change, both,
-                fov, beta, clamp, extra_deadends, eval,
+                fov, beta, clamp, extra_deadends, eval, norm_obs,
                 ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
                 j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost)
 end
@@ -434,10 +435,16 @@ function get_occupancy_image(env::EnvState)
 
                 occupancy[veh_rows, lane] .= 1
                 if veh.id <= 100
-                    rel_vel[veh_rows, lane] .= map_to_01(Δv, -env.params.v_des,
-                                                            env.params.v_des)
-                    rel_lat_disp[veh_rows, lane] .= Δt / DEFAULT_LANE_WIDTH
-                    rel_heading[veh_rows, lane] .= Δϕ / 2π
+                    if env.params.norm_obs
+                        rel_vel[veh_rows, lane] .= map_to_01(Δv, -env.params.v_des,
+                                                                env.params.v_des)
+                        rel_lat_disp[veh_rows, lane] .= Δt / DEFAULT_LANE_WIDTH
+                        rel_heading[veh_rows, lane] .= Δϕ / 2π
+                    else
+                        rel_vel[veh_rows, lane] .= Δv
+                        rel_lat_disp[veh_rows, lane] .= Δt
+                        rel_heading[veh_rows, lane] .= Δϕ
+                    end
                 else
                     rel_vel[veh_rows, lane] .= 0.0
                     rel_lat_disp[veh_rows, lane] .= 0.0

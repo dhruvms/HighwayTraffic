@@ -68,11 +68,13 @@ function make_env(params::EnvParams)
         end
     end
 
+    prev_shaping = nothing
+
     EnvState(params, roadway, scene, rec, ego, action_state, lanetag, steps,
                 mpc,
                 in_lane, lane_ticks, victim_id,
                 merge_tick, car_data, ego_data,
-                models, colours)
+                models, colours, prev_shaping)
 end
 
 function observe(env::EnvState)
@@ -150,10 +152,17 @@ function is_terminal(env::EnvState; init::Bool=false)
     road_proj = proj(ego.state.state.posG, env.roadway)
 
     # done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
-    done = done || (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) # off roadway
-    done = done || is_crash(env, init=init)
-    final_r -= done * 100.0
-    done = done || (env.steps ≥ env.params.max_ticks)
+    if (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) || # off roadway
+        is_crash(env, init=init)
+        done = true
+        final_r = -100.0
+    end
+
+    # # done = done || (env.steps ≥ env.params.max_ticks)
+    # if (env.lane_ticks ≥ 50)
+    #     done = true
+    #     final_r = +100.0
+    # end
 
     # max_s = 0.0
     # for (i, veh) in enumerate(env.scene)
@@ -176,29 +185,28 @@ function reward(env::EnvState, action::Vector{Float64},
     ego_proj = Frenet(ego.state.state.posG,
                         env.roadway[true_lanetag], env.roadway)
 
-    reward = 0.0
-    # # action cost
-    # reward -= env.params.j_cost * abs(action[1])
-    # reward -= env.params.δdot_cost * abs(action[2])
-    # reward -= env.params.a_cost * abs(ego.state.a)
+    shaping = 0.0
+    # # acceleration cost
+    # shaping -= env.params.a_cost * abs(ego.state.a)
     # desired velocity cost
-    reward -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
+    shaping -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
     # lane follow cost
-    reward -= env.params.t_cost * abs(ego_proj.t)
-    reward -= env.params.ϕ_cost * abs(ego_proj.ϕ) * in_lane
+    shaping -= env.params.t_cost * abs(ego_proj.t)
+    shaping -= env.params.ϕ_cost * abs(ego_proj.ϕ) * in_lane
+
     # distance to deadend
     if in_lane
-        reward += 1.0
-        reward += env.params.deadend_cost * deadend
+        shaping += 1.0
+        shaping += env.params.deadend_cost * deadend
+
+        if env.in_lane
+            env.lane_ticks += 1
+        else
+            env.in_lane = true
+            env.lane_ticks = 1
+        end
 
         if env.params.eval
-            if env.in_lane
-                env.lane_ticks += 1
-            else
-                env.in_lane = true
-                env.lane_ticks = 1
-            end
-
             if env.lane_ticks ≥ 10 && isnothing(env.victim_id)
                 env.merge_tick = env.steps
                 victim = get_neighbor_rear_along_lane(
@@ -217,17 +225,25 @@ function reward(env::EnvState, action::Vector{Float64},
             end
         end
     else
-        reward -= env.params.deadend_cost * (1.0 - deadend)
+        shaping -= env.params.deadend_cost * (1.0 - deadend)
 
-        if env.params.eval
-            if env.in_lane
-                env.in_lane = false
-                env.lane_ticks = 0
-            end
+        if env.in_lane
+            env.in_lane = false
+            env.lane_ticks = 0
         end
     end
 
-    reward
+    reward = 0.0
+    if !isnothing(env.prev_shaping)
+        reward = shaping - env.prev_shaping
+    end
+    env.prev_shaping = shaping
+
+    # # action cost
+    # reward -= env.params.j_cost * abs(action[1])
+    # reward -= env.params.δdot_cost * abs(action[2])
+
+    (env, reward)
 end
 
 function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float64},
@@ -334,7 +350,7 @@ function step!(env::EnvState, action::Vector{Float32})
         terminal = false
     end
 
-    r = reward(env, action, deadend, Bool(in_lane))
+    env, r = reward(env, action, deadend, Bool(in_lane))
     r -= 2.0 * neg_v
     if Bool(terminal)
         r += final_r

@@ -117,7 +117,7 @@ function AutomotiveDrivingModels.propagate(
     s = v*dt + a*dt*dt/2 # distance covered
     v_ = v + a*dt
     done = false
-    if s < 0 || v_ < 0
+    if (s < 0 || v_ < 0) && (a_ ≤ veh.state.a)
         done = true
     end
     s = max(0, s) # no back up

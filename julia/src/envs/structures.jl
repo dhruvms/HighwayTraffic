@@ -19,6 +19,7 @@ mutable struct EnvParams <: AbstractParams
     clamp::Bool # clamp action to limits
     extra_deadends::Bool # extra deadends in other lanes
     eval::Bool # evaluation
+    norm_obs::Bool # normalise observations
 
     ego_pos::Int # location of egovehicle, between [1, cars]
     v_des::Float64 # desired velocity
@@ -60,6 +61,8 @@ mutable struct EnvState <: AbstractEnv
     other_cars::Dict{Int, DriverModel}
     colours::Dict{Int, Colorant}
 
+    prev_shaping::Union{Float64, Nothing}
+
     # EnvState() = new()
 end
 Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene),
@@ -68,7 +71,8 @@ Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene),
                                     e.in_lane, e.lane_ticks, e.victim_id,
                                     e.merge_tick,
                                     copy(e.car_data), copy(e.ego_data),
-                                    copy(e.other_cars), copy(e.colours))
+                                    copy(e.other_cars), copy(e.colours),
+                                    e.prev_shaping)
 
 
 action_space(params::EnvParams) = ([-4.0, -0.4], [2.0, 0.4])

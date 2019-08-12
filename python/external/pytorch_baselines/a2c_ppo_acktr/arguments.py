@@ -170,19 +170,19 @@ def get_args():
         help='occupancy grid observation')
     parser.add_argument('--fov', default=50, type=int,
         help='Field of view')
-    parser.add_argument('--j-cost', default=1.0, type=float,
+    parser.add_argument('--j-cost', default=0.001, type=float,
         help='Jerk cost')
-    parser.add_argument('--d-cost', default=10.0, type=float,
+    parser.add_argument('--d-cost', default=0.01, type=float,
         help='Steering rate cost')
-    parser.add_argument('--a-cost', default=100.0, type=float,
+    parser.add_argument('--a-cost', default=0.1, type=float,
         help='Acceleration cost')
-    parser.add_argument('--v-cost', default=2500.0, type=float,
+    parser.add_argument('--v-cost', default=2.5, type=float,
         help='Desired velocity deviation cost')
-    parser.add_argument('--phi-cost', default=1000.0, type=float,
+    parser.add_argument('--phi-cost', default=1.0, type=float,
         help='Lane heading deviation cost')
-    parser.add_argument('--t-cost', default=10000.0, type=float,
+    parser.add_argument('--t-cost', default=10.0, type=float,
         help='Lane lateral displacement cost')
-    parser.add_argument('--end-cost', default=1000.0, type=float,
+    parser.add_argument('--end-cost', default=1.0, type=float,
         help='Deadend cost')
     parser.add_argument('--beta-dist', action='store_true', default=False,
         help='use beta distribution policy')
@@ -196,6 +196,8 @@ def get_args():
     parser.add_argument('--eval-episodes', type=int, default=10,
                         help='Evaluation episodes')
     parser.add_argument('--eval', action='store_true', default=False,
+        help='in eval mode or not')
+    parser.add_argument('--norm-obs', action='store_true', default=True,
         help='in eval mode or not')
     parser.add_argument('--log', action='store_true', default=False,
         help='tensorboard logging')
