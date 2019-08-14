@@ -158,11 +158,11 @@ function is_terminal(env::EnvState; init::Bool=false)
         final_r = -100.0
     end
 
-    # # done = done || (env.steps ≥ env.params.max_ticks)
-    # if (env.lane_ticks ≥ 50)
-    #     done = true
-    #     final_r = +100.0
-    # end
+    # done = done || (env.steps ≥ env.params.max_ticks)
+    if (env.lane_ticks ≥ 50)
+        done = true
+        final_r = +100.0
+    end
 
     # max_s = 0.0
     # for (i, veh) in enumerate(env.scene)
@@ -239,9 +239,9 @@ function reward(env::EnvState, action::Vector{Float64},
     end
     env.prev_shaping = shaping
 
-    # # action cost
-    # reward -= env.params.j_cost * abs(action[1])
-    # reward -= env.params.δdot_cost * abs(action[2])
+    # action cost
+    reward -= env.params.j_cost * abs(action[1])
+    reward -= env.params.δdot_cost * abs(action[2])
 
     (env, reward)
 end
@@ -353,7 +353,7 @@ function step!(env::EnvState, action::Vector{Float32})
     env, r = reward(env, action, deadend, Bool(in_lane))
     r -= 2.0 * neg_v
     if Bool(terminal)
-        r += final_r
+        r = final_r
     end
 
     ego = get_by_id(env.ego, EGO_ID)

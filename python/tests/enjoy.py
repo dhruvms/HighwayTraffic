@@ -42,6 +42,7 @@ if not os.path.exists(viddir):
 actor_critic, ob_rms = \
             torch.load(os.path.join(args.model_dir, args.algo + ".pt"), map_location=device)
 actor_critic.eval()
+print(actor_critic)
 
 vec_norm = get_vec_normalize(env)
 if vec_norm is not None:
