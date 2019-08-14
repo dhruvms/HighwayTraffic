@@ -207,64 +207,64 @@ class CNNBase(NNBase):
             # common to actor and critic
             self.conv_net = nn.Sequential(
                 nn.Conv2d(self.channels*nstack, 32, (9, 3), stride=(4, 1)),
-                nn.Tanh(), Flatten(),
-                nn.Linear(32 * 24 * 1, 64), nn.Tanh(),
-                nn.Linear(64, hidden_size), nn.Tanh())
+                nn.ReLU(), Flatten(),
+                nn.Linear(32 * 24 * 1, 64), nn.ReLU(),
+                nn.Linear(64, hidden_size), nn.ReLU())
             self.mlp = nn.Sequential(
-                nn.Linear(hidden_size + self.ego_dim, 64), nn.Tanh(),
-                nn.Linear(64, hidden_size), nn.Tanh())
+                nn.Linear(hidden_size + self.ego_dim, 64), nn.ReLU(),
+                nn.Linear(64, hidden_size), nn.ReLU())
             self.critic = nn.Linear(hidden_size, 1)
         elif complex:
             # common to actor and critic
             self.conv_net = nn.Sequential(
                 nn.Conv2d(self.channels*nstack, 32, (8, 1), stride=(4, 1)),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Conv2d(32, 64, (4, 1), stride=(2, 3)),
-                nn.Tanh(), Flatten())
+                nn.ReLU(), Flatten())
             self.ego = None
             if nstack > 1:
                 self.ego = nn.Sequential(
-                    nn.Conv1d(nstack, 1, 3), nn.Tanh(), Flatten(),
-                    nn.Linear((self.ego_dim - 2), self.ego_dim), nn.Tanh())
+                    nn.Conv1d(nstack, 1, 3), nn.ReLU(), Flatten(),
+                    nn.Linear((self.ego_dim - 2), self.ego_dim), nn.ReLU())
 
             self.actor_others = nn.Sequential(
-                nn.Linear(64 * 11 * 1, 256), nn.Tanh(),
-                nn.Linear(256, 256), nn.Tanh())
+                nn.Linear(64 * 11 * 1, 256), nn.ReLU(),
+                nn.Linear(256, 256), nn.ReLU())
             self.critic_others = nn.Sequential(
-                nn.Linear(64 * 11 * 1, 256), nn.Tanh(),
-                nn.Linear(256, 256), nn.Tanh())
+                nn.Linear(64 * 11 * 1, 256), nn.ReLU(),
+                nn.Linear(256, 256), nn.ReLU())
 
             self.actor = nn.Sequential(
-                nn.Linear(256 + self.ego_dim, 256), nn.Tanh(),
-                nn.Linear(256, hidden_size), nn.Tanh())
+                nn.Linear(256 + self.ego_dim, 256), nn.ReLU(),
+                nn.Linear(256, hidden_size), nn.ReLU())
 
             self.critic = nn.Sequential(
-                nn.Linear(256 + self.ego_dim, 256), nn.Tanh(),
+                nn.Linear(256 + self.ego_dim, 256), nn.ReLU(),
                 nn.Linear(256, 1))
         else:
             # common to actor and critic
             self.conv_net = nn.Sequential(
                 nn.Conv2d(self.channels*nstack, 32, (9, 3), stride=(4, 1)),
-                nn.Tanh(), Flatten())
+                nn.ReLU(), Flatten())
             self.ego = None
             if nstack > 1:
                 self.ego = nn.Sequential(
-                    nn.Conv1d(nstack, 1, 3), nn.Tanh(), Flatten(),
-                    nn.Linear((self.ego_dim - 2), self.ego_dim), nn.Tanh())
+                    nn.Conv1d(nstack, 1, 3), nn.ReLU(), Flatten(),
+                    nn.Linear((self.ego_dim - 2), self.ego_dim), nn.ReLU())
 
             self.actor_others = nn.Sequential(
-                nn.Linear(32 * 24 * 1, 64), nn.Tanh(),
-                nn.Linear(64, hidden_size), nn.Tanh())
+                nn.Linear(32 * 24 * 1, 64), nn.ReLU(),
+                nn.Linear(64, hidden_size), nn.ReLU())
             self.critic_others = nn.Sequential(
-                nn.Linear(32 * 24 * 1, 64), nn.Tanh(),
-                nn.Linear(64, hidden_size), nn.Tanh())
+                nn.Linear(32 * 24 * 1, 64), nn.ReLU(),
+                nn.Linear(64, hidden_size), nn.ReLU())
 
             self.actor = nn.Sequential(
-                nn.Linear(hidden_size + self.ego_dim, 64), nn.Tanh(),
-                nn.Linear(64, hidden_size), nn.Tanh())
+                nn.Linear(hidden_size + self.ego_dim, 64), nn.ReLU(),
+                nn.Linear(64, hidden_size), nn.ReLU())
 
             self.critic = nn.Sequential(
-                nn.Linear(hidden_size + self.ego_dim, 64), nn.Tanh(),
+                nn.Linear(hidden_size + self.ego_dim, 64), nn.ReLU(),
                 nn.Linear(64, 1))
 
         self.train()
