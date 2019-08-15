@@ -159,7 +159,7 @@ function is_terminal(env::EnvState; init::Bool=false)
     end
 
     # done = done || (env.steps ≥ env.params.max_ticks)
-    if (env.lane_ticks ≥ 50)
+    if (env.lane_ticks ≥ 10)
         done = true
         final_r = +100.0
     end
@@ -191,8 +191,10 @@ function reward(env::EnvState, action::Vector{Float64},
     # desired velocity cost
     shaping -= env.params.v_cost * abs(ego.state.state.v - env.params.v_des)
     # lane follow cost
-    shaping -= env.params.t_cost * abs(ego_proj.t)
-    shaping -= env.params.ϕ_cost * abs(ego_proj.ϕ) * in_lane
+    Δt = abs(ego_proj.t)
+    Δϕ = abs(ego_proj.ϕ)
+    shaping -= env.params.t_cost * Δt
+    shaping -= env.params.ϕ_cost * Δϕ * in_lane
 
     # distance to deadend
     if in_lane
@@ -200,10 +202,17 @@ function reward(env::EnvState, action::Vector{Float64},
         shaping += env.params.deadend_cost * deadend
 
         if env.in_lane
-            env.lane_ticks += 1
+            if (Δt ≤ 0.15) && (Δϕ ≤ deg2rad(10))
+                env.lane_ticks += 1
+            else
+                env.in_lane = false
+                env.lane_ticks = 0
+            end
         else
-            env.in_lane = true
-            env.lane_ticks = 1
+            if (Δt ≤ 0.15) && (Δϕ ≤ deg2rad(10))
+                env.in_lane = true
+                env.lane_ticks = 1
+            end
         end
 
         if env.params.eval

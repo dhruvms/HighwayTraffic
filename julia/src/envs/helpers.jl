@@ -56,7 +56,7 @@ function dict_to_simparams(params::Dict)
     room = stadium ? room / 2.0 : room
     rooms = zeros(lanes, cars_per_lane)
     for l in 1:lanes
-        rooms[l, :] = cumsum((rand(cars_per_lane) .+ 1) * room)
+        rooms[l, :] = cumsum(((0.6 * rand(cars_per_lane)) .+ 1) * room)
     end
 
     v_des = get(params, "v_des", 5.0)
@@ -108,29 +108,29 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
 
     lane0 = LaneTag(segment, lane)
     s0 = params.rooms[lane, Int(ceil(params.ego_pos/params.lanes))]
-    v0 = rand() * params.v_des
+    v0 = rand() + 1.0
 
-    gap = try
-        params.rooms[lane, Int(ceil(params.ego_pos/params.lanes))+1] - s0 -
-                                                                    CAR_LENGTH
-    catch
-        Inf
-    end
-    t_stop = 1.5
-    stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
-    while stop_dist > gap
-        v0 *= 0.9
-        stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
-    end
+    # gap = try
+    #     params.rooms[lane, Int(ceil(params.ego_pos/params.lanes))+1] - s0 -
+    #                                                                 CAR_LENGTH
+    # catch
+    #     Inf
+    # end
+    # t_stop = 1.5
+    # stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
+    # while stop_dist > gap
+    #     v0 *= 0.9
+    #     stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
+    # end
 
     t0 = (rand() - 0.5) * (DEFAULT_LANE_WIDTH/2.0)
     ϕ0 = (2 * rand() - 1) * 0.1
     # t0 = 0.0
     # ϕ0 = 0.0
-    # ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0),
-    #                                                     EgoVehicle(), EGO_ID)
-    ego = Entity(AgentState(roadway, v=0.0, s=s0, t=t0, ϕ=ϕ0, lane=lane0),
+    ego = Entity(AgentState(roadway, v=v0, s=s0, t=t0, ϕ=ϕ0, lane=lane0),
                                                         EgoVehicle(), EGO_ID)
+    # ego = Entity(AgentState(roadway, v=0.0, s=s0, t=t0, ϕ=ϕ0, lane=lane0),
+    #                                                     EgoVehicle(), EGO_ID)
     return Frame([ego]), lane0
 end
 
@@ -164,19 +164,19 @@ function populate_scene(params::P, roadway::Roadway{Float64},
 
         lane0 = LaneTag(segment, lane)
         s0 = params.rooms[lane, Int(ceil(i/params.lanes))]
-        v0 = rand() * params.v_des
+        v0 = rand() + 1.0
 
-        gap = try
-            params.rooms[lane, Int(ceil(i/params.lanes))+1] - s0 - CAR_LENGTH
-        catch
-            Inf
-        end
-        t_stop = 1.5
-        stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
-        while stop_dist > gap
-            v0 *= 0.9
-            stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
-        end
+        # gap = try
+        #     params.rooms[lane, Int(ceil(i/params.lanes))+1] - s0 - CAR_LENGTH
+        # catch
+        #     Inf
+        # end
+        # t_stop = 1.5
+        # stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
+        # while stop_dist > gap
+        #     v0 *= 0.9
+        #     stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
+        # end
 
         t0 = (rand() - 0.5) * (DEFAULT_LANE_WIDTH/2.0)
         ϕ0 = (2 * rand() - 1) * 0.1
@@ -184,10 +184,10 @@ function populate_scene(params::P, roadway::Roadway{Float64},
         # ϕ0 = 0.0
         posF = Frenet(roadway[lane0], s0, t0, ϕ0)
 
-        # push!(scene, Vehicle(VehicleState(posF, roadway, v0),
-        #                                                 VehicleDef(), v_num))
-        push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
+        push!(scene, Vehicle(VehicleState(posF, roadway, v0),
                                                         VehicleDef(), v_num))
+        # push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
+        #                                                 VehicleDef(), v_num))
         if type < 0.0
             models[v_num] = MPCDriver(params.dt)
             v0 = 0.0
@@ -198,28 +198,29 @@ function populate_scene(params::P, roadway::Roadway{Float64},
             end
         else
             η_coop = rand()
-            η_percept = rand(0.01:0.01:1.0)
+            η_percept = (rand() - 0.5) * (0.15/0.5)
             models[v_num] = BafflingDriver(params.dt,
                                     η_coop=η_coop,
                                     η_percept=η_percept,
-                                    r=rand(0.001:0.001:0.1),
                                     mlon=BafflingLongitudinalTracker(
-                                        s_min=rand() + 1.0,
-                                        T=rand() * 1.5 + 0.5
+                                        δ=rand()+3.5,
+                                        T=rand()+1.0,
+                                        s_min=(rand()*2.0)+1.0,
+                                        a_max=rand()+2.5,
+                                        d_cmf=rand()+1.5,
+                                        ΔT=params.dt,
                                         ),
                                     )
             carcolours[v_num] = HSV(0, 1.0 - η_coop, 1.0)
         end
-        # v_des = rand() * (params.v_des - (params.v_des/3.0)) +
-        #                                                     (params.v_des/3.0)
-        v_des = (rand() * 4.0) + 1.0
+        v_des = (rand() * 3.0) + 2.0
         AutomotiveDrivingModels.set_desired_speed!(models[v_num], v_des)
         v_num += 1
     end
 
     ego_lane = Int(params.lanes - (params.ego_pos % params.lanes))
     ego_s = params.rooms[ego_lane, Int(ceil(params.ego_pos/params.lanes))]
-    s_deadend = ego_s + (40.0 * rand() + 20.0)
+    s_deadend = ego_s + (25.0 * rand() + 5.0)
     lane_deadend = get_lane(roadway, ego.state.state)
     posF = Frenet(roadway[lane_deadend.tag], s_deadend, 0.0, 0.0)
     push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
