@@ -30,11 +30,12 @@ function make_env(params::EnvParams)
     seg = lanetag.segment
     lane = lanetag.lane
     if params.change
-        lane = try
-            rand(filter(l->l != lanetag.lane, 1:params.lanes))
-        catch
-            1
-        end
+        # lane = try
+        #     rand(filter(l->l != lanetag.lane, 1:params.lanes))
+        # catch
+        #     1
+        # end
+        lane = lane + 1
     elseif params.both
         lane = rand(1:params.lanes)
     end

@@ -70,8 +70,14 @@ function dict_to_simparams(params::Dict)
     if lanes == 1
         o_dim = ego_dim + (2 * other_dim) * (cars > 1)
     elseif lanes == 2
+        if change
+            ego_pos = rand(1:2:cars)
+        end
         o_dim = ego_dim + (4 * other_dim) * (cars > 1)
     else
+        if change
+            ego_pos = rand(2:3:cars)
+        end
         o_dim = ego_dim + (6 * other_dim) * (cars > 1)
     end
 
