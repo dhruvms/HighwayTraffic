@@ -355,9 +355,9 @@ function step!(env::EnvState, action::Vector{Float32})
         o, deadend, in_lane = observe(env)
     end
     terminal, final_r = is_terminal(env)
-    if env.params.eval
-        terminal = false
-    end
+    # if env.params.eval
+    #     terminal = false
+    # end
 
     env, r = reward(env, action, deadend, Bool(in_lane))
     r -= 2.0 * neg_v

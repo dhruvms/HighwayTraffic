@@ -490,7 +490,7 @@ function is_crash(env::E; init::Bool=false) where E <: AbstractEnv
     if !init
         for veh in env.scene
             if veh.id != EGO_ID
-                if !isnothing(ego) && is_colliding(ego, veh)
+                if !isnothing(ego) && collision_check(ego, veh) ≤ 0
                     return true
                 end
             end
@@ -498,7 +498,7 @@ function is_crash(env::E; init::Bool=false) where E <: AbstractEnv
     else
         for i in 1:length(env.scene)-1
             for j in i+1:length(env.scene)
-                if is_colliding(env.scene[i], env.scene[j])
+                if collision_check(ego, veh) ≤ 0
                     return true
                 end
             end
@@ -506,4 +506,28 @@ function is_crash(env::E; init::Bool=false) where E <: AbstractEnv
     end
 
     return false
+end
+
+function collision_check(
+            veh₁::Entity{VehicleState, D, Int},
+            veh₂::Entity{VehicleState, D, Int}) where {D}
+    x₁, y₁, θ₁ = veh₁.state.posG.x, veh₁.state.posG.y, veh₁.state.posG.θ
+    x₂, y₂, θ₂ = veh₂.state.posG.x, veh₂.state.posG.y, veh₂.state.posG.θ
+    l = (max(veh₁.def.length, veh₂.def.length) * 1.01) / 2.0
+    w = (max(veh₁.def.width, veh₂.def.width) * 1.01) / 2.0
+
+    r = w
+    min_dist = Inf
+    for i in [-1, 0, 1]
+        for j in [-1, 0, 1]
+            dist = sqrt(
+                      ((x₁ + i *  (l - r) * cos(θ₁)) -
+                                (x₂ + j * (l - r) * cos(θ₂)))^2
+                     + ((y₁ + i * (l - r) * sin(θ₁)) -
+                                (y₂ + j * (l - r) * sin(θ₂)))^2
+                     )     - 2 * r
+            min_dist = min(dist, min_dist)
+        end
+    end
+    return max(min_dist, 0)
 end
