@@ -55,6 +55,8 @@ mutable struct EnvState <: AbstractEnv
     lane_ticks::Int
     victim_id::Union{Int, Nothing}
     merge_tick::Int
+    min_dist::Float64
+    lane_dist::Vector{Float64}
     car_data::Dict{Int, Dict{String, Vector{Float64}}}
     ego_data::Dict{String, Vector{Float64}}
 
@@ -69,7 +71,7 @@ Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene),
                                     e.rec, e.ego, copy(e.action_state),
                                     e.init_lane, e.steps, e.mpc,
                                     e.in_lane, e.lane_ticks, e.victim_id,
-                                    e.merge_tick,
+                                    e.merge_tick, e.min_dist, copy(e.lane_dist),
                                     copy(e.car_data), copy(e.ego_data),
                                     copy(e.other_cars), copy(e.colours),
                                     e.prev_shaping)

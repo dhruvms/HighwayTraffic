@@ -5,6 +5,7 @@ using AutoViz
 using Reel
 using Printf
 using DelimitedFiles
+using Statistics
 
 export reset, step!, save_gif
 export action_space, observation_space, EnvState
@@ -57,7 +58,9 @@ function make_env(params::EnvParams)
     in_lane = false
     lane_ticks = 0
     victim_id = nothing
-    merge_tick = 0
+    merge_tick = -1
+    min_dist = Inf
+    lane_dist = []
     car_data = Dict{Int, Dict{String, Vector{Float64}}}()
     for (i, veh) in enumerate(scene)
         if veh.id ≠ EGO_ID && veh.id <= 100
@@ -73,7 +76,7 @@ function make_env(params::EnvParams)
     EnvState(params, roadway, scene, rec, ego, action_state, lanetag, steps,
                 mpc,
                 in_lane, lane_ticks, victim_id,
-                merge_tick, car_data, ego_data,
+                merge_tick, min_dist, lane_dist, car_data, ego_data,
                 models, colours, prev_shaping)
 end
 
@@ -125,13 +128,14 @@ function Base.reset(paramdict::Dict)
     params = dict_to_simparams(paramdict)
     env = make_env(params)
     burn_in_sim!(env)
-    check, _ = is_terminal(env)
+    check, _, min_dist = is_terminal(env)
     while check
         env = make_env(params)
         burn_in_sim!(env)
-        check, _ = is_terminal(env)
+        check, _, min_dist = is_terminal(env)
     end
     env.action_state = env.action_state[end-3:end]
+    env.min_dist = min(env.min_dist, min_dist)
     update!(env.rec, env.scene)
 
     if env.params.occupancy
@@ -152,14 +156,15 @@ function is_terminal(env::EnvState; init::Bool=false)
     road_proj = proj(ego.state.state.posG, env.roadway)
 
     # done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
+    min_dist, crash = is_crash(env, init=init)
     if (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) || # off roadway
-        is_crash(env, init=init)
+        crash
         done = true
         final_r = -100.0
     end
 
     # done = done || (env.steps ≥ env.params.max_ticks)
-    if (env.lane_ticks ≥ 10)
+    if (env.lane_ticks ≥ 10) && !env.params.eval
         done = true
         final_r = +100.0
     end
@@ -172,7 +177,7 @@ function is_terminal(env::EnvState; init::Bool=false)
     # end
     # done = done || (max_s ≥ env.params.length * 0.95)
 
-    done, final_r
+    done, final_r, min_dist
 end
 
 function reward(env::EnvState, action::Vector{Float64},
@@ -216,7 +221,7 @@ function reward(env::EnvState, action::Vector{Float64},
         end
 
         if env.params.eval
-            if env.lane_ticks ≥ 10 && isnothing(env.victim_id)
+            if env.lane_ticks ≥ 10 && env.merge_tick == -1
                 env.merge_tick = env.steps
                 victim = get_neighbor_rear_along_lane(
                             env.scene, EGO_ID, env.roadway,
@@ -247,6 +252,7 @@ function reward(env::EnvState, action::Vector{Float64},
         reward = shaping - env.prev_shaping
     end
     env.prev_shaping = shaping
+    push!(env.lane_dist, Δt)
 
     # action cost
     reward -= env.params.j_cost * abs(action[1])
@@ -354,7 +360,8 @@ function step!(env::EnvState, action::Vector{Float32})
     else
         o, deadend, in_lane = observe(env)
     end
-    terminal, final_r = is_terminal(env)
+    terminal, final_r, min_dist = is_terminal(env)
+    env.min_dist = min(env.min_dist, min_dist)
     # if env.params.eval
     #     terminal = false
     # end
@@ -414,8 +421,12 @@ function write_data(env::EnvState, filename::String="default.dat")
     open(filename, "w") do f
         merge_tick = env.merge_tick
         steps = env.steps
+        min_dist = env.min_dist
+        avg_offset = mean(env.lane_dist)
         write(f, "$merge_tick\n")
         write(f, "$steps\n")
+        write(f, "$min_dist\n")
+        write(f, "$avg_offset\n")
 
         for field in env.ego_data
             key = field[1]

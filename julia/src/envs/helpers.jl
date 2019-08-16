@@ -56,7 +56,8 @@ function dict_to_simparams(params::Dict)
     room = stadium ? room / 2.0 : room
     rooms = zeros(lanes, cars_per_lane)
     for l in 1:lanes
-        rooms[l, :] = cumsum(((0.6 * rand(cars_per_lane)) .+ 1) * room)
+        # rooms[l, :] = cumsum(((0.6 * rand(cars_per_lane)) .+ 1) * room)
+        rooms[l, :] = cumsum(rand(cars_per_lane) .+ 6.0)
     end
 
     v_des = get(params, "v_des", 5.0)
@@ -487,25 +488,30 @@ function is_crash(env::E; init::Bool=false) where E <: AbstractEnv
                 nothing
             end
 
+    min_dist = Inf
     if !init
         for veh in env.scene
             if veh.id != EGO_ID
-                if !isnothing(ego) && collision_check(ego, veh) ≤ 0
-                    return true
+                dist = collision_check(ego, veh)
+                min_dist = min(dist, min_dist)
+                if !isnothing(ego) && dist ≤ 0
+                    return 0.0, true
                 end
             end
         end
     else
         for i in 1:length(env.scene)-1
             for j in i+1:length(env.scene)
+                dist = collision_check(ego, veh)
+                min_dist = min(dist, min_dist)
                 if collision_check(ego, veh) ≤ 0
-                    return true
+                    return 0.0, true
                 end
             end
         end
     end
 
-    return false
+    return min_dist, false
 end
 
 function collision_check(
