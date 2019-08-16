@@ -144,6 +144,47 @@ function populate_scene(params::P, roadway::Roadway{Float64},
     push!(scene, Vehicle(ego))
     carcolours[EGO_ID] = COLOR_CAR_EGO
 
+    room = CAR_LENGTH * 1.1
+    ego_lane = Int(params.lanes - (params.ego_pos % params.lanes))
+    ego_s = params.rooms[ego_lane, Int(ceil(params.ego_pos/params.lanes))]
+    s_deadend = ego_s + (25.0 * rand() + 5.0)
+    ignore_idx = findall(x -> x,
+                    abs.(params.rooms[ego_lane, :] .- s_deadend) .< room)
+    lane_deadend = get_lane(roadway, ego.state.state)
+    posF = Frenet(roadway[lane_deadend.tag], s_deadend, 0.0, 0.0)
+    push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
+                                                    VehicleDef(), 101))
+    models[101] = ProportionalSpeedTracker()
+    carcolours[101] = RGB(0, 0, 0)
+    AutomotiveDrivingModels.set_desired_speed!(models[101], 0.0)
+
+    ignored_cars = Dict(ego_lane => ignore_idx)
+
+    if params.extra_deadends
+        extra_deadends = rand(0:params.lanes-1)
+        idx = 102
+        lanes = [ego_lane]
+        for d in 1:extra_deadends
+            lane = Int(rand(filter(l->l ∉ lanes, 1:params.lanes)))
+            s = rand(params.rooms[lane, :]) + (100.0 * rand() + 100.0)
+            ignore_idx = findall(x -> x,
+                                abs.(params.rooms[lane, :] .- s) .< room)
+            ignored_cars[lane] = ignore_idx
+
+            ego_tag = get_lane(roadway, ego.state.state)
+            deadend_tag = LaneTag(ego_tag.tag.segment, lane)
+            posF = Frenet(roadway[deadend_tag], s, 0.0, 0.0)
+            push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
+                                                            VehicleDef(), idx))
+            models[idx] = ProportionalSpeedTracker()
+            carcolours[idx] = RGB(0, 0, 0)
+            AutomotiveDrivingModels.set_desired_speed!(models[idx], 0.0)
+
+            idx += 1
+            push!(lanes, lane)
+        end
+    end
+
     v_num = params.ego_pos == -1 ? 1 : EGO_ID + 1
     for i in 1:(params.cars)
         if i == params.ego_pos
@@ -159,6 +200,11 @@ function populate_scene(params::P, roadway::Roadway{Float64},
         end
         segment = Int(segment)
         lane = Int(lane)
+
+        if lane ∈ keys(ignored_cars) &&
+                Int(ceil(i/params.lanes)) ∈ ignored_cars[lane]
+            continue
+        end
 
         type = rand()
 
@@ -216,39 +262,6 @@ function populate_scene(params::P, roadway::Roadway{Float64},
         v_des = (rand() * 3.0) + 2.0
         AutomotiveDrivingModels.set_desired_speed!(models[v_num], v_des)
         v_num += 1
-    end
-
-    ego_lane = Int(params.lanes - (params.ego_pos % params.lanes))
-    ego_s = params.rooms[ego_lane, Int(ceil(params.ego_pos/params.lanes))]
-    s_deadend = ego_s + (25.0 * rand() + 5.0)
-    lane_deadend = get_lane(roadway, ego.state.state)
-    posF = Frenet(roadway[lane_deadend.tag], s_deadend, 0.0, 0.0)
-    push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
-                                                    VehicleDef(), 101))
-    models[101] = ProportionalSpeedTracker()
-    carcolours[101] = RGB(0, 0, 0)
-    AutomotiveDrivingModels.set_desired_speed!(models[101], 0.0)
-
-    if params.extra_deadends
-        extra_deadends = rand(0:params.lanes-1)
-        idx = 102
-        lanes = [ego_lane]
-        for d in 1:extra_deadends
-            lane = Int(rand(filter(l->l ∉ lanes, 1:params.lanes)))
-            s = rand(params.rooms[lane, :]) + (100.0 * rand() + 100.0)
-
-            ego_tag = get_lane(roadway, ego.state.state)
-            deadend_tag = LaneTag(ego_tag.tag.segment, lane)
-            posF = Frenet(roadway[deadend_tag], s, 0.0, 0.0)
-            push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
-                                                            VehicleDef(), idx))
-            models[idx] = ProportionalSpeedTracker()
-            carcolours[idx] = RGB(0, 0, 0)
-            AutomotiveDrivingModels.set_desired_speed!(models[idx], 0.0)
-
-            idx += 1
-            push!(lanes, lane)
-        end
     end
 
     (scene, models, carcolours)
