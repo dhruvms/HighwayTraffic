@@ -1,0 +1,16 @@
+source screenrc.common
+
+screen -t proc1
+stuff "cd ../algs^M"
+stuff "p35ws^M"
+
+stuff "python train_baseline.py --env-name LaneFollow-v1 --algo ppo --use-gae --lr 2.5e-4 --use-linear-lr-decay --clip-param 0.1 --value-loss-coef 0.5 --num-processes 20 --num-steps 128 --num-mini-batch 4 --log --log-interval 10 --entropy-coef 0.01 --cars 80 --base-port 9300 --length 1000.0 --lanes 2 --change --beta-dist --occupancy --gamma 0.995 --seed 9549 --num-env-steps 20000000 --hri^M"
+stuff "kill -9 $(pgrep -f 'port 930')^M"
+stuff "kill -9 $(pgrep -f 'port 931')^M"
+
+stuff "python train_baseline.py --env-name LaneFollow-v1 --algo ppo --use-gae --lr 2.5e-4 --use-linear-lr-decay --clip-param 0.1 --value-loss-coef 0.5 --num-processes 20 --num-steps 128 --num-mini-batch 4 --log --log-interval 10 --entropy-coef 0.01 --cars 80 --base-port 9300 --length 1000.0 --lanes 3 --change --beta-dist --occupancy --gamma 0.995 --seed 9548 --num-env-steps 20000000 --hri^M"
+stuff "kill -9 $(pgrep -f 'port 930')^M"
+stuff "kill -9 $(pgrep -f 'port 931')^M"
+
+screen -t bash
+stuff "p35ws^M"
