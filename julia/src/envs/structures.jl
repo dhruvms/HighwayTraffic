@@ -20,6 +20,8 @@ mutable struct EnvParams <: AbstractParams
     extra_deadends::Bool # extra deadends in other lanes
     eval::Bool # evaluation
     norm_obs::Bool # normalise observations
+    hri::Bool # HRI specific test case
+    curriculum::Bool # (randomised) curriculum of cars and gaps during training
 
     ego_pos::Int # location of egovehicle, between [1, cars]
     v_des::Float64 # desired velocity
@@ -35,6 +37,10 @@ mutable struct EnvParams <: AbstractParams
     ϕ_cost::Float64
     t_cost::Float64
     deadend_cost::Float64
+
+    mode::String # types of other vehicles (mixed/cooperative/aggressive)
+    video::Bool # save video
+    write_data::Bool # save data file
 end
 
 mutable struct EnvState <: AbstractEnv

@@ -36,7 +36,7 @@ function dict_to_simparams(params::Dict)
     seed = get(params, "seed", 68845)
     # Random.seed!(seed)
 
-    length = get(params, "length", 1000.0)
+    road = get(params, "length", 1000.0)
     lanes = get(params, "lanes", 3)
     cars = get(params, "cars", 30)
     dt = get(params, "dt", 0.2)
@@ -50,14 +50,25 @@ function dict_to_simparams(params::Dict)
     extra_deadends = get(params, "extra_deadends", false)
     eval = get(params, "eval", false)
     norm_obs = get(params, "norm_obs", true)
+    hri = get(params, "hri", false)
+    curriculum = get(params, "curriculum", false)
+
+    room = CAR_LENGTH * 1.1
+    if curriculum
+        cars = rand(10:cars)
+        room = (room * rand() + 6.0)
+    end
+
+    if eval && hri
+        cars = max(30, cars)
+    end
 
     cars_per_lane = Int(ceil(cars/lanes))
-    room = CAR_LENGTH * 1.1
     room = stadium ? room / 2.0 : room
     rooms = zeros(lanes, cars_per_lane)
     for l in 1:lanes
-        # rooms[l, :] = cumsum(((0.6 * rand(cars_per_lane)) .+ 1) * room)
-        rooms[l, :] = cumsum(rand(cars_per_lane) .+ 6.0)
+        rooms[l, :] = cumsum(((0.6 * rand(cars_per_lane)) .+ 1) * room)
+        # rooms[l, :] = cumsum(rand(cars_per_lane) .+ 6.0)
     end
 
     v_des = get(params, "v_des", 5.0)
@@ -70,15 +81,26 @@ function dict_to_simparams(params::Dict)
     if lanes == 1
         o_dim = ego_dim + (2 * other_dim) * (cars > 1)
     elseif lanes == 2
-        if change
+        if change && hri
             ego_pos = rand(1:2:cars)
         end
         o_dim = ego_dim + (4 * other_dim) * (cars > 1)
     else
-        if change
+        if change && hri
             ego_pos = rand(2:3:cars)
         end
         o_dim = ego_dim + (6 * other_dim) * (cars > 1)
+    end
+    if eval && hri
+        if lanes == 2
+            valid = collect(1:2:cars)
+            num_valid = length(valid)
+            ego_pos = rand(valid[max(num_valid-4, 1):end])
+        elseif lanes == 3
+            valid = collect(2:3:cars)
+            num_valid = length(valid)
+            ego_pos = rand(valid[max(num_valid-4, 1):end])
+        end
     end
 
     j_cost = get(params, "j_cost", 0.001)
@@ -95,10 +117,16 @@ function dict_to_simparams(params::Dict)
     # # j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost = costs
     # v_cost, ϕ_cost, t_cost, deadend_cost = costs
 
-    EnvParams(length, lanes, cars, dt, max_ticks, rooms, stadium, change, both,
-                fov, beta, clamp, extra_deadends, eval, norm_obs,
+    mode = get(params, "eval_mode", "mixed")
+    video = get(params, "video", false)
+    write_data = get(params, "write_data", false)
+
+    EnvParams(road, lanes, cars, dt, max_ticks, rooms, stadium, change, both,
+                fov, beta, clamp,
+                extra_deadends, eval, norm_obs, hri, curriculum,
                 ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
-                j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost)
+                j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost,
+                mode, video, write_data)
 end
 
 function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
@@ -154,7 +182,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
     room = CAR_LENGTH * 1.1
     ego_lane = Int(params.lanes - (params.ego_pos % params.lanes))
     ego_s = params.rooms[ego_lane, Int(ceil(params.ego_pos/params.lanes))]
-    s_deadend = ego_s + (25.0 * rand() + 5.0)
+    s_deadend = ego_s + (35.0 * rand() + 5.0)
     ignore_idx = findall(x -> x,
                     abs.(params.rooms[ego_lane, :] .- s_deadend) .< room)
     lane_deadend = get_lane(roadway, ego.state.state)
@@ -250,11 +278,23 @@ function populate_scene(params::P, roadway::Roadway{Float64},
                 MONOKAY["color3"]
             end
         else
-            η_coop = rand()
+            η_coop = nothing
+            if params.mode == "cooperative"
+                η_coop = 1.0
+            elseif params.mode == "aggressive"
+                η_coop = 0.0
+            else
+                η_coop = rand()
+            end
+
             η_percept = (rand() - 0.5) * (0.15/0.5)
+            stop_and_go = rand() > 0.75
             models[v_num] = BafflingDriver(params.dt,
                                     η_coop=η_coop,
                                     η_percept=η_percept,
+                                    isStopAndGo=stop_and_go,
+                                    stop_go_cycle=(rand()*5.0)+12.5,
+                                    stop_period=(rand()*2.0)+7.0,
                                     mlon=BafflingLongitudinalTracker(
                                         δ=rand()+3.5,
                                         T=rand()+1.0,

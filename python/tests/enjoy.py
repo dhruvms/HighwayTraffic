@@ -34,7 +34,10 @@ action_space_lo = env.action_space.low
 # Get a render function
 render_func = get_render_func(env)
 timestr = time.strftime("%Y%m%d-%H%M%S")
-viddir = expdir + '/vids/' + timestr + '/'
+if args.eval_folder:
+    viddir = expdir + 'vids/' + args.eval_folder + '/'
+else:
+    viddir = expdir + 'vids/' + timestr + '/'
 if not os.path.exists(viddir):
     os.makedirs(viddir)
 
@@ -42,7 +45,7 @@ if not os.path.exists(viddir):
 actor_critic, ob_rms = \
             torch.load(os.path.join(args.model_dir, args.algo + ".pt"), map_location=device)
 actor_critic.eval()
-print(actor_critic)
+# print(actor_critic)
 
 vec_norm = get_vec_normalize(env)
 if vec_norm is not None:
@@ -77,15 +80,17 @@ for episode in range(1, args.eval_episodes+1):
                 solved += 1
             default_filename = 'eval_ep'
             try:
-                os.rename(default_filename + '.mp4', filename + '.mp4')
+                if args.video:
+                    os.rename(default_filename + '.mp4', filename + '.mp4')
+
                 os.rename(default_filename + '.dat', filename + '.dat')
             except FileNotFoundError:
                 render_func(filename + '.mp4')
 
             break
 
-    print('Eval: Episode reward = %f' % (ep_reward))
+    # print('Eval: Episode reward = %f' % (ep_reward))
     eval_reward += ep_reward
 
 avg_reward = eval_reward / args.eval_episodes
-print('Eval: Avg reward = %f | Unsolved = %d' % (avg_reward, solved))
+# print('Eval: Avg reward = %f | Unsolved = %d' % (avg_reward, solved))

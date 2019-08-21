@@ -30,12 +30,15 @@ function make_env(params::EnvParams)
     seg = lanetag.segment
     lane = lanetag.lane
     if params.change
-        # lane = try
-        #     rand(filter(l->l != lanetag.lane, 1:params.lanes))
-        # catch
-        #     1
-        # end
-        lane = lane + 1
+        if !params.hri
+            lane = try
+                rand(filter(l->l != lanetag.lane, 1:params.lanes))
+            catch
+                1
+            end
+        else
+            lane = lane + 1
+        end
     elseif params.both
         lane = rand(1:params.lanes)
     end
@@ -165,9 +168,16 @@ function is_terminal(env::EnvState; init::Bool=false)
     end
 
     # done = done || (env.steps ≥ env.params.max_ticks)
-    if (env.lane_ticks ≥ 10) && !env.params.eval
-        done = true
-        final_r = +100.0
+    if !env.params.eval
+        if (env.lane_ticks ≥ 10)
+            done = true
+            final_r = +100.0
+        end
+    else
+        if (env.lane_ticks ≥ 1)
+            done = true
+            final_r = +100.0
+        end
     end
 
     # max_s = 0.0
@@ -208,21 +218,30 @@ function reward(env::EnvState, action::Vector{Float64},
         shaping += env.params.deadend_cost * deadend
 
         if env.in_lane
-            if (Δt ≤ 0.15) && (Δϕ ≤ deg2rad(10))
-                env.lane_ticks += 1
+            if !env.params.eval
+                if (Δt ≤ 0.15) && (Δϕ ≤ deg2rad(10))
+                    env.lane_ticks += 1
+                else
+                    env.in_lane = false
+                    env.lane_ticks = 0
+                end
             else
-                env.in_lane = false
-                env.lane_ticks = 0
+                env.lane_ticks += 1
             end
         else
-            if (Δt ≤ 0.15) && (Δϕ ≤ deg2rad(10))
+            if !env.params.eval
+                if (Δt ≤ 0.15) && (Δϕ ≤ deg2rad(10))
+                    env.in_lane = true
+                    env.lane_ticks = 1
+                end
+            else
                 env.in_lane = true
                 env.lane_ticks = 1
             end
         end
 
         if env.params.eval
-            if env.lane_ticks ≥ 10 && env.merge_tick == -1
+            if env.lane_ticks ≥ 1 && env.merge_tick == -1
                 env.merge_tick = env.steps
                 victim = get_neighbor_rear_along_lane(
                             env.scene, EGO_ID, env.roadway,
@@ -231,8 +250,9 @@ function reward(env::EnvState, action::Vector{Float64},
                 if !isnothing(victim.ind)
                     env.victim_id = victim.ind
 
-                    for car in keys(env.car_data)
-                        if car ≠ env.victim_id
+                    car_data_copy = copy(env.car_data)
+                    for car in keys(car_data_copy)
+                        if car ≠ env.victim_id && car ∈ keys(env.car_data)
                             delete!(env.car_data, car)
                         end
                     end
@@ -381,37 +401,41 @@ function step!(env::EnvState, action::Vector{Float32})
 end
 
 function save_gif(env::EnvState, filename::String="default.mp4")
-    framerate = Int(1.0/env.params.dt) * 2
-    frames = Reel.Frames(MIME("image/png"), fps=framerate)
+    if env.params.video
+        framerate = Int(1.0/env.params.dt) * 2
+        frames = Reel.Frames(MIME("image/png"), fps=framerate)
 
-    cam = CarFollowCamera(EGO_ID, 20.0)
-    ego = get_by_id(env.ego, EGO_ID)
+        cam = CarFollowCamera(EGO_ID, 20.0)
+        ego = get_by_id(env.ego, EGO_ID)
 
-    ticks = nframes(env.rec)
-    for frame_index in 1:ticks
-        scene = env.rec[frame_index-ticks]
-        ego = scene[findfirst(EGO_ID, scene)]
+        ticks = nframes(env.rec)
+        for frame_index in 1:ticks
+            scene = env.rec[frame_index-ticks]
+            ego = scene[findfirst(EGO_ID, scene)]
 
-        overlays = [TextOverlay(text=["$(veh.id)"], incameraframe=true,
-                            pos=VecE2(veh.state.posG.x-0.7, veh.state.posG.y+0.7)) for veh in scene]
+            overlays = [TextOverlay(text=["$(veh.id)"], incameraframe=true,
+                                pos=VecE2(veh.state.posG.x-0.7, veh.state.posG.y+0.7)) for veh in scene]
 
-        action_state = reshape(env.action_state, 4, :)'
-        action_state = action_state[frame_index, :]
-        jerk_text = @sprintf("Jerk:  %2.2f m/s^3", action_state[1])
-        δrate_text = @sprintf("δ rate:  %2.2f rad/s", action_state[2])
-        acc_text = @sprintf("acc:  %2.2f m/s^2", action_state[3])
-        δ_text = @sprintf("δ:  %2.2f rad", action_state[4])
-        v_text = @sprintf("v:  %2.2f m/s", ego.state.v)
-        lane_text = @sprintf("Target Lane: LaneTag(%d, %d)", env.init_lane.segment, env.init_lane.lane)
-        action_overlay = TextOverlay(text=[jerk_text, δrate_text,
-                            acc_text, δ_text, v_text, lane_text], font_size=14)
-        push!(overlays, action_overlay)
+            action_state = reshape(env.action_state, 4, :)'
+            action_state = action_state[frame_index, :]
+            jerk_text = @sprintf("Jerk:  %2.2f m/s^3", action_state[1])
+            δrate_text = @sprintf("δ rate:  %2.2f rad/s", action_state[2])
+            acc_text = @sprintf("acc:  %2.2f m/s^2", action_state[3])
+            δ_text = @sprintf("δ:  %2.2f rad", action_state[4])
+            v_text = @sprintf("v:  %2.2f m/s", ego.state.v)
+            lane_text = @sprintf("Target Lane: LaneTag(%d, %d)", env.init_lane.segment, env.init_lane.lane)
+            action_overlay = TextOverlay(text=[jerk_text, δrate_text,
+                                acc_text, δ_text, v_text, lane_text], font_size=14)
+            push!(overlays, action_overlay)
 
-        push!(frames, render(scene, env.roadway, overlays, cam=cam, car_colors=env.colours))
+            push!(frames, render(scene, env.roadway, overlays, cam=cam, car_colors=env.colours))
+        end
+        Reel.write(filename, frames)
     end
-    Reel.write(filename, frames)
 
-    write_data(env, replace(filename, "mp4" => "dat"))
+    if env.params.write_data
+        write_data(env, replace(filename, "mp4" => "dat"))
+    end
 end
 
 function write_data(env::EnvState, filename::String="default.dat")
@@ -439,8 +463,14 @@ function write_data(env::EnvState, filename::String="default.dat")
 
         if length(env.car_data) > 1
             write(f, "NONE\n")
-        elseif !isnothing(env.victim_id)
-            victim = env.car_data[env.victim_id]
+            return
+        elseif !isnothing(env.victim_id) && env.victim_id < 100
+            victim = try
+                env.car_data[env.victim_id]
+            catch
+                write(f, "NONE\n")
+                return
+            end
             for field in victim
                 key = "victim_" * field[1]
                 val = field[2]

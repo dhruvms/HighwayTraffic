@@ -8,10 +8,8 @@ include("baffling_lane_changer.jl")
 """
 	BafflingDriver
 Driver that randomly changes lanes and speeds.
-
 # Constructors
 	BafflingDriver(timestep::Float64;mlon::LaneFollowingDriver=IntelligentDriverModel(), mlat::LateralDriverModel=ProportionalLaneTracker(), mlane::LaneChangeModel=RandLaneChanger(timestep),rec::SceneRecord = SceneRecord(1, timestep))
-
 # Fields
 - `rec::SceneRecord` A record that will hold the resulting simulation results
 - `mlon::LaneFollowingDriver = IntelligentDriverModel()` Longitudinal driving model
@@ -25,9 +23,14 @@ mutable struct BafflingDriver <: DriverModel{LatLonAccel}
     mlane::LaneChangeModel
     dt::Float64
     η_coop::Float64 # cooperativeness parameter. η_coop==1 : yield 100%, η_coop==0 : go 100% >> Bernoulli parameter
-    η_percept::Float64
-    r::Float64 # randomness
+    η_percept::Float64 # perception range [m]
+    r::Float64 # randomness in lane change ∈ [0,1]
     allowLaneChange::Bool # allow lane changing
+    isStopAndGo::Bool # stop and go behavior
+    stop_go_cycle::Float64 # stop and go cycle [sec]
+    stop_period::Float64 # time length of being stopped [sec]
+    v_des::Float64 # desired speed [m/s]
+    nticks::Int # cumulative ticks
 
     function BafflingDriver(
         timestep::Float64;
@@ -38,7 +41,10 @@ mutable struct BafflingDriver <: DriverModel{LatLonAccel}
         mlat::LateralDriverModel=BafflingLateralTracker(),
         mlane::LaneChangeModel=BafflingLaneChanger(timestep,threshold_lane_change_rand = r),
         rec::SceneRecord = SceneRecord(1, timestep),
-        allowLaneChange = false
+        allowLaneChange::Bool = true,
+        isStopAndGo::Bool = false,
+        stop_go_cycle::Float64 = 10.0,
+        stop_period::Float64 = 5.0,
         )
 
         retval = new()
@@ -52,14 +58,22 @@ mutable struct BafflingDriver <: DriverModel{LatLonAccel}
         retval.η_percept = η_percept
         retval.r = r
         retval.allowLaneChange = allowLaneChange
+        retval.isStopAndGo = isStopAndGo
+        retval.stop_go_cycle = stop_go_cycle
+        retval.stop_period = stop_period
+        retval.v_des = 29.0
+        retval.nticks = 0
 
         retval
     end
 end
 get_name(::BafflingDriver) = "BafflingDriver"
-function AutomotiveDrivingModels.set_desired_speed!(model::BafflingDriver, v_des::Float64)
+function AutomotiveDrivingModels.set_desired_speed!(model::BafflingDriver, v_des::Float64; doStore::Bool = true)
     set_desired_speed!(model.mlon, v_des)
     set_desired_speed!(model.mlane, v_des)
+    if doStore
+        model.v_des = v_des # store in the object
+    end
     model
 end
 
@@ -100,9 +114,23 @@ function AutomotiveDrivingModels.propagate(veh::Entity{VehicleState, VehicleDef,
     return state
 end
 
-function AutomotiveDrivingModels.observe!(driver::BafflingDriver, scene::Scene, roadway::Roadway, egoid::Int)
-
+function AutomotiveDrivingModels.observe!(driver::BafflingDriver, scene::Scene, roadway::Roadway, egoid::Int; nticks::Int = -1)
     update!(driver.rec, scene)
+    if nticks == -1
+        driver.nticks += 1
+        nticks = driver.nticks
+    end
+
+    # stop-and-go behavior
+    if driver.isStopAndGo
+        go_period = driver.stop_go_cycle - driver.stop_period
+        if nticks*driver.dt % driver.stop_go_cycle > go_period # if in `stop` period
+            # println(nticks)
+            set_desired_speed!(driver, 0.0, doStore = false)
+        else # if in `go` period
+            set_desired_speed!(driver, driver.v_des, doStore = false)
+        end
+    end
 
     if driver.allowLaneChange
         observe!(driver.mlane, scene, roadway, egoid) # receive action from the lane change controller

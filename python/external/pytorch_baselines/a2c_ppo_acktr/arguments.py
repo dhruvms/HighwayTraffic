@@ -199,6 +199,9 @@ def get_args():
         help='in eval mode or not')
     parser.add_argument('--norm-obs', action='store_true', default=True,
         help='in eval mode or not')
+    parser.add_argument('--hri', action='store_true', default=True,
+        help='HRI specific test case')
+
     parser.add_argument('--log', action='store_true', default=False,
         help='tensorboard logging')
     parser.add_argument('--ip', type=str, default="127.0.0.1",
@@ -208,6 +211,14 @@ def get_args():
     parser.add_argument('--model-name', nargs='+', type=int,
             help='Terms to include in model name')
 
+    parser.add_argument('--eval-mode', type=str, default="mixed",
+            help='types of other vehicles (mixed/cooperative/aggressive)')
+    parser.add_argument('--video', action='store_true', default=False,
+        help='save video')
+    parser.add_argument('--write-data', action='store_true', default=False,
+        help='save data file')
+    parser.add_argument('--eval-folder', type=str, default='',
+            help='eval save folder name')
 
     args = parser.parse_args()
 
