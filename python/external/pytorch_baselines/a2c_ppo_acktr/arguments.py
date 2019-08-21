@@ -201,6 +201,8 @@ def get_args():
         help='in eval mode or not')
     parser.add_argument('--hri', action='store_true', default=True,
         help='HRI specific test case')
+    parser.add_argument('--curriculum', action='store_true', default=True,
+        help='use randomised curriculum')
 
     parser.add_argument('--log', action='store_true', default=False,
         help='tensorboard logging')
