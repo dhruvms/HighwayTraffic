@@ -14,34 +14,29 @@ gen_results()
         echo ${EXP}
         echo "Cars: " ${CARS} ", Lanes: " ${LANES} ", Seed: " ${SEED}
         echo
-        if [[ ${SEED} == 365 ]]; then
-                echo "Skip: " ${EXP}
-                echo
-                return
-        fi
 
         python enjoy.py --env-name LaneFollow-v1 --algo ppo --num-processes 1 \
                 --eval-episodes 200 --base-port 9999 --cars ${CARS} \
                 --length 1000.0 --lanes ${LANES} --change --beta-dist \
                 --occupancy --max-steps 200 --lr 2.5e-4 --seed ${SEED} \
-                --write-data --hri \
-                --eval-mode mixed --eval-folder mixed2
+                --write-data --hri \ # include --video to save videos
+                --eval-mode mixed --eval-folder mixed
         kill -9 $(pgrep -f "port 9999")
 
         python enjoy.py --env-name LaneFollow-v1 --algo ppo --num-processes 1 \
                 --eval-episodes 200 --base-port 9999 --cars ${CARS} \
                 --length 1000.0 --lanes ${LANES} --change --beta-dist \
                 --occupancy --max-steps 200 --lr 2.5e-4 --seed ${SEED} \
-                --write-data --hri \
-                --eval-mode cooperative --eval-folder cooperative2
+                --write-data --hri \ # include --video to save videos
+                --eval-mode cooperative --eval-folder cooperative
         kill -9 $(pgrep -f "port 9999")
 
         python enjoy.py --env-name LaneFollow-v1 --algo ppo --num-processes 1 \
                 --eval-episodes 200 --base-port 9999 --cars ${CARS} \
                 --length 1000.0 --lanes ${LANES} --change --beta-dist \
                 --occupancy --max-steps 200 --lr 2.5e-4 --seed ${SEED} \
-                --write-data --hri \
-                --eval-mode aggressive --eval-folder aggressive2
+                --write-data --hri \ # include --video to save videos
+                --eval-mode aggressive --eval-folder aggressive
         kill -9 $(pgrep -f "port 9999")
 
         python results.py --cars ${CARS} --length 1000.0 --lanes ${LANES} \
