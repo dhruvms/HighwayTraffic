@@ -235,7 +235,10 @@ for i, exp in enumerate(exps):
     victim_alats = []
 
     for file in filenames:
-        parsed_data = read_file(os.path.join(data_dir, exp, file))
+        try:
+            parsed_data = read_file(os.path.join(data_dir, exp, file))
+        except Exception as e:
+            print(os.path.join(data_dir, exp, file))
 
         if parsed_data["ep_length"] <= 0:
             continue
@@ -260,16 +263,15 @@ for i, exp in enumerate(exps):
             victim_vels.append(parsed_data["victim"]["vel"])
             victim_alats.append(parsed_data["victim"]["alat"])
 
-    successes = sum(np.all([np.array(ep_lengths) == 200,
+    successes = np.all([np.array(ep_lengths) >= np.array(merge_ticks) + 50,
                         np.array(merge_ticks) > 0,
-                        np.array(merge_ticks) < 200], axis=0))
-    total = len(ep_lengths)
-
-    succ_idx = np.all([np.array(merge_ticks) > 0,
                         np.array(merge_ticks) < 200], axis=0)
-    merge_ticks = list(np.array(merge_ticks)[succ_idx])
-    min_dists = list(np.array(min_dists)[succ_idx])
-    avg_offsets = list(np.array(avg_offsets)[succ_idx])
+    num_successes = sum(successes)
+    total = len(ep_lengths)
+    
+    merge_ticks = list(np.array(merge_ticks)[successes])
+    min_dists = list(np.array(min_dists)[successes])
+    avg_offsets = list(np.array(avg_offsets)[successes])
 
     merge_time_mean = np.mean(merge_ticks)
     merge_time_stddev = np.std(merge_ticks)
@@ -282,7 +284,7 @@ for i, exp in enumerate(exps):
 
     summary_file = exp_dir + "summary.dat"
     with open(summary_file, 'w') as f:
-        success_rate = (successes/total) * 100
+        success_rate = (num_successes/total) * 100
         f.write("%f\n" % success_rate)
         f.write("%f +- %f\n" % (merge_time_mean, merge_time_stddev))
         f.write("%f +- %f\n" % (min_dist_mean, min_dist_stddev))
@@ -290,7 +292,7 @@ for i, exp in enumerate(exps):
 
     metrics_file = exp_dir + "metrics.dat"
     with open(metrics_file, 'w') as f:
-        f.write("%d\n" % successes)
+        f.write("%d\n" % num_successes)
         f.write("%d\n" % total)
 
         for tick in merge_ticks:

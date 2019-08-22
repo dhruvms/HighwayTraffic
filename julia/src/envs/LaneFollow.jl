@@ -174,10 +174,15 @@ function is_terminal(env::EnvState; init::Bool=false)
             final_r = +100.0
         end
     else
-        if (env.lane_ticks ≥ 1)
+        if (env.merge_tick ≠ -1 && env.steps ≥ env.merge_tick + 50)
             done = true
             final_r = +100.0
         end
+        # # Dhruv's success check - "well-aligned" with lane
+        # if (env.lane_ticks ≥ 10)
+        #     done = true
+        #     final_r = +100.0
+        # end
     end
 
     # max_s = 0.0
@@ -227,6 +232,13 @@ function reward(env::EnvState, action::Vector{Float64},
                 end
             else
                 env.lane_ticks += 1
+                # # Dhruv's success check - "well-aligned" with lane
+                # if (Δt ≤ 0.15) && (Δϕ ≤ deg2rad(10))
+                #     env.lane_ticks += 1
+                # else
+                #     env.in_lane = false
+                #     env.lane_ticks = 0
+                # end
             end
         else
             if !env.params.eval
@@ -237,6 +249,11 @@ function reward(env::EnvState, action::Vector{Float64},
             else
                 env.in_lane = true
                 env.lane_ticks = 1
+                # # Dhruv's success check - "well-aligned" with lane
+                # if (Δt ≤ 0.15) && (Δϕ ≤ deg2rad(10))
+                #     env.in_lane = true
+                #     env.lane_ticks = 1
+                # end
             end
         end
 
@@ -405,7 +422,7 @@ function save_gif(env::EnvState, filename::String="default.mp4")
         framerate = Int(1.0/env.params.dt) * 2
         frames = Reel.Frames(MIME("image/png"), fps=framerate)
 
-        cam = CarFollowCamera(EGO_ID, 20.0)
+        cam = CarFollowCamera(EGO_ID, 8.0)
         ego = get_by_id(env.ego, EGO_ID)
 
         ticks = nframes(env.rec)

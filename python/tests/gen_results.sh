@@ -2,8 +2,7 @@
 
 gen_results()
 {
-        echo $1
-        EXP=$(echo $1 | sed -n "s/^.*data\/\(\S*\).*$/\1/p")
+        EXP=$(echo $1 | sed -n "s/^.*present\/\(\S*\).*$/\1/p")
         if [[ ${EXP} == "old" ]]; then
                 echo "Skip: " ${EXP}
                 echo
@@ -15,29 +14,34 @@ gen_results()
         echo ${EXP}
         echo "Cars: " ${CARS} ", Lanes: " ${LANES} ", Seed: " ${SEED}
         echo
+        if [[ ${SEED} == 365 ]]; then
+                echo "Skip: " ${EXP}
+                echo
+                return
+        fi
 
         python enjoy.py --env-name LaneFollow-v1 --algo ppo --num-processes 1 \
                 --eval-episodes 200 --base-port 9999 --cars ${CARS} \
                 --length 1000.0 --lanes ${LANES} --change --beta-dist \
                 --occupancy --max-steps 200 --lr 2.5e-4 --seed ${SEED} \
-                --write-data --video \
-                --eval-mode mixed --eval-folder mixed_vids
+                --write-data --hri \
+                --eval-mode mixed --eval-folder mixed2
         kill -9 $(pgrep -f "port 9999")
 
         python enjoy.py --env-name LaneFollow-v1 --algo ppo --num-processes 1 \
                 --eval-episodes 200 --base-port 9999 --cars ${CARS} \
                 --length 1000.0 --lanes ${LANES} --change --beta-dist \
                 --occupancy --max-steps 200 --lr 2.5e-4 --seed ${SEED} \
-                --write-data --video \
-                --eval-mode cooperative --eval-folder cooperative_vids
+                --write-data --hri \
+                --eval-mode cooperative --eval-folder cooperative2
         kill -9 $(pgrep -f "port 9999")
 
         python enjoy.py --env-name LaneFollow-v1 --algo ppo --num-processes 1 \
                 --eval-episodes 200 --base-port 9999 --cars ${CARS} \
                 --length 1000.0 --lanes ${LANES} --change --beta-dist \
                 --occupancy --max-steps 200 --lr 2.5e-4 --seed ${SEED} \
-                --write-data --video \
-                --eval-mode aggressive --eval-folder aggressive_vids
+                --write-data --hri \
+                --eval-mode aggressive --eval-folder aggressive2
         kill -9 $(pgrep -f "port 9999")
 
         python results.py --cars ${CARS} --length 1000.0 --lanes ${LANES} \
