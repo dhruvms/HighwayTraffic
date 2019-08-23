@@ -17,8 +17,10 @@ include("../behaviours/mpc_driver.jl")
 include("../behaviours/baffling_drivers.jl")
 include("./traj_overlay.jl")
 
-# TODO: distance_from_end does not make sense for stadium roadways
-
+"""
+    make_env(params::EnvParams)
+initialise simulator environment
+"""
 function make_env(params::EnvParams)
     if params.stadium
         roadway = gen_stadium_roadway(params.lanes, length=params.length, width=0.0, radius=10.0)
@@ -84,6 +86,10 @@ function make_env(params::EnvParams)
                 models, colours, prev_shaping)
 end
 
+"""
+    observe(env::EnvState)
+get vector-based observation
+"""
 function observe(env::EnvState)
     ego_o = get_ego_features(env)
     if env.params.cars - 1 > 0
@@ -95,6 +101,10 @@ function observe(env::EnvState)
     return ego_o, ego_o[1], ego_o[2]
 end
 
+"""
+    observe_occupancy(env::EnvState)
+get occupancy grid-based observation
+"""
 function observe_occupancy(env::EnvState)
     ego_o = get_ego_features(env)
     o = get_occupancy_image(env)
@@ -107,6 +117,10 @@ function observe_occupancy(env::EnvState)
     return o, ego_o[1], ego_o[2]
 end
 
+"""
+    burn_in_sim!(env::EnvState; steps::Int=0)
+burn in simulation state by propagating all other vehicles for some timesteps
+"""
 function burn_in_sim!(env::EnvState; steps::Int=0)
     other_actions = Array{Any}(undef, length(env.scene))
     for step in 1:steps
@@ -128,6 +142,10 @@ function burn_in_sim!(env::EnvState; steps::Int=0)
     env
 end
 
+"""
+    Base.reset(paramdict::Dict)
+reset environment state
+"""
 function Base.reset(paramdict::Dict)
     params = dict_to_simparams(paramdict)
     env = make_env(params)
@@ -151,6 +169,12 @@ function Base.reset(paramdict::Dict)
     (env, o)
 end
 
+"""
+    is_terminal(env::EnvState; init::Bool=false)
+check for episode termination
+    - success if criteria achieved
+    - failure if collision or off-roadway
+"""
 function is_terminal(env::EnvState; init::Bool=false)
     done = false
     final_r = 0.0
@@ -196,6 +220,11 @@ function is_terminal(env::EnvState; init::Bool=false)
     done, final_r, min_dist
 end
 
+"""
+    reward(env::EnvState, action::Vector{Float64},
+                    deadend::Float64, in_lane::Bool)
+calculate reward
+"""
 function reward(env::EnvState, action::Vector{Float64},
                     deadend::Float64, in_lane::Bool)
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
@@ -299,6 +328,11 @@ function reward(env::EnvState, action::Vector{Float64},
     (env, reward)
 end
 
+"""
+    AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float64},
+                                        actions::Vector{Any}; init::Bool=false)
+propagate all vehicles one timestep ahead
+"""
 function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float64},
                                         actions::Vector{Any}; init::Bool=false)
     ego = get_by_id(env.ego, EGO_ID)
@@ -350,13 +384,21 @@ function AutomotiveDrivingModels.tick!(env::EnvState, action::Vector{Float64},
     (env, neg_v)
 end
 
+"""
+    AutomotiveDrivingModels.get_actions!(
+        actions::Vector{A},
+        scene::EntityFrame{S, D, I},
+        roadway::R,
+        models::Dict{I, M}, # id → model
+        ) where {S, D, I, A, R, M <: DriverModel}
+get actions for all other vehicles except egovehicle
+"""
 function AutomotiveDrivingModels.get_actions!(
     actions::Vector{A},
     scene::EntityFrame{S, D, I},
     roadway::R,
     models::Dict{I, M}, # id → model
     ) where {S, D, I, A, R, M <: DriverModel}
-
 
     for (i, veh) in enumerate(scene)
         if veh.id == EGO_ID || veh.id >= 101
@@ -372,6 +414,10 @@ function AutomotiveDrivingModels.get_actions!(
     actions
 end
 
+"""
+    step!(env::EnvState, action::Vector{Float32})
+take one action in the environment
+"""
 function step!(env::EnvState, action::Vector{Float32})
     action = convert(Vector{Float64}, action)
     action_lims = action_space(env.params)
@@ -417,6 +463,10 @@ function step!(env::EnvState, action::Vector{Float32})
     (o, r, terminal, info, copy(env))
 end
 
+"""
+    save_gif(env::EnvState, filename::String="default.mp4")
+save video and/or log data for last episode
+"""
 function save_gif(env::EnvState, filename::String="default.mp4")
     if env.params.video
         framerate = Int(1.0/env.params.dt) * 2
@@ -455,6 +505,10 @@ function save_gif(env::EnvState, filename::String="default.mp4")
     end
 end
 
+"""
+    write_data(env::EnvState, filename::String="default.dat")
+log data for last episode
+"""
 function write_data(env::EnvState, filename::String="default.dat")
     if filename == ".dat"
         return

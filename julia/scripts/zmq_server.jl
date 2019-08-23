@@ -6,6 +6,7 @@ using ArgParse
 include("../src/envs/LaneFollow.jl")
 using .LaneFollow
 
+# read tcp/ip settings
 s = ArgParseSettings()
 @add_arg_table s begin
     "--port"
@@ -69,5 +70,6 @@ function run_env_server(ip, port, env::EnvState)
     close(conn)
 end
 
+# launch server
 env, _ = reset(Dict())
 run_env_server(ip, port, env)

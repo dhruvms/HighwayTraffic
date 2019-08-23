@@ -30,6 +30,7 @@ mutable struct EnvParams <: AbstractParams
     o_dim::Int # observation space dimension
     occupancy::Bool # use occupancy grid observation
 
+    # parameters associated with the reward function
     j_cost::Float64
     δdot_cost::Float64
     a_cost::Float64
@@ -44,7 +45,7 @@ mutable struct EnvParams <: AbstractParams
 end
 
 mutable struct EnvState <: AbstractEnv
-    params::EnvParams
+    params::EnvParams # simulator parameters
     roadway::Roadway{Float64}
     scene::Scene
     rec::SceneRecord
@@ -53,10 +54,11 @@ mutable struct EnvState <: AbstractEnv
     # Vector to be reshaped into ?x4 where each row contains commanded action
     # at that (row #) timestep, the egovehicle acceleration and steering angle
     action_state::Vector{Float64}
-    init_lane::LaneTag
-    steps::Int
+    init_lane::LaneTag # desired lane
+    steps::Int # episode ticks
     mpc::DriverModel # mpc driver model
 
+    # logging info
     in_lane::Bool
     lane_ticks::Int
     victim_id::Union{Int, Nothing}
@@ -69,9 +71,7 @@ mutable struct EnvState <: AbstractEnv
     other_cars::Dict{Int, DriverModel}
     colours::Dict{Int, Colorant}
 
-    prev_shaping::Union{Float64, Nothing}
-
-    # EnvState() = new()
+    prev_shaping::Union{Float64, Nothing} # used in action reward calculation
 end
 Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene),
                                     e.rec, e.ego, copy(e.action_state),
@@ -83,11 +83,12 @@ Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene),
                                     e.prev_shaping)
 
 
+# action limits
 action_space(params::EnvParams) = ([-4.0, -0.4], [2.0, 0.4])
 function observation_space(params::EnvParams)
     if params.occupancy
         fov = 2 * params.fov + 1
-        return (-Inf, Inf, (5, fov, 3))
+        return (-Inf, Inf, (5, fov, 3)) # account for egovehicle information
     else
         return (-Inf, Inf, (params.o_dim,))
     end

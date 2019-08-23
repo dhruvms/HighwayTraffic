@@ -32,6 +32,10 @@ function distance_from_end(params::EnvParams, veh::Agent)
     return (params.length - veh.state.state.posF.s) / params.length
 end
 
+"""
+    dict_to_simparams(params::Dict)
+read simulation parameters passed in from Python
+"""
 function dict_to_simparams(params::Dict)
     seed = get(params, "seed", 68845)
     # Random.seed!(seed)
@@ -129,6 +133,10 @@ function dict_to_simparams(params::Dict)
                 mode, video, write_data)
 end
 
+"""
+    get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
+initialise egovehicle
+"""
 function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     if params.stadium
         segment = (params.ego_pos % 2) * 6 + (1 - params.ego_pos % 2) * 3
@@ -169,6 +177,12 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     return Frame([ego]), lane0
 end
 
+"""
+    populate_scene(params::P, roadway::Roadway{Float64},
+                            ego::Entity{AgentState,EgoVehicle,Int64},
+                            ) where P <: AbstractParams
+initialise all other vehicles
+"""
 function populate_scene(params::P, roadway::Roadway{Float64},
                             ego::Entity{AgentState,EgoVehicle,Int64},
                             ) where P <: AbstractParams
@@ -314,6 +328,10 @@ function populate_scene(params::P, roadway::Roadway{Float64},
     (scene, models, carcolours)
 end
 
+"""
+    get_neighbours(env::EnvState, ego_idx::Int)
+immediate neighbours used in vector observations
+"""
 function get_neighbours(env::EnvState, ego_idx::Int)
     fore_M = get_neighbor_fore_along_lane(env.scene, ego_idx, env.roadway,
                 VehicleTargetPointRear(), VehicleTargetPointRear(),
@@ -337,6 +355,12 @@ function get_neighbours(env::EnvState, ego_idx::Int)
     (fore_M, fore_L, fore_R, rear_M, rear_L, rear_R)
 end
 
+"""
+    get_featurevec(env::EnvState, neighbour::NeighborLongitudinalResult,
+                            ego_lanetag::LaneTag;
+                            lane::Int=0, rear::Bool=false)
+feature vectors for one immediate neighbour
+"""
 function get_featurevec(env::EnvState, neighbour::NeighborLongitudinalResult,
                             ego_lanetag::LaneTag;
                             lane::Int=0, rear::Bool=false)
@@ -371,6 +395,10 @@ function get_featurevec(env::EnvState, neighbour::NeighborLongitudinalResult,
     end
 end
 
+"""
+    get_neighbour_featurevecs(env::EnvState)
+feature vectors for all immediate neighbours
+"""
 function get_neighbour_featurevecs(env::EnvState)
     ego_idx = findfirst(EGO_ID, env.scene)
     ego = get_by_id(env.ego, EGO_ID)
@@ -399,6 +427,10 @@ function get_neighbour_featurevecs(env::EnvState)
     features
 end
 
+"""
+    get_ego_features(env::EnvState)
+egovehicle features
+"""
 function get_ego_features(env::EnvState)
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego = get_by_id(env.ego, EGO_ID)
@@ -449,6 +481,10 @@ function map_to_01(in::Float64, in_start::Float64, in_end::Float64)
     return map_to_range(in, in_start, in_end, 0.0, 1.0)
 end
 
+"""
+    get_occupancy_image(env::EnvState)
+occupancy-grid based observation tensor
+"""
 function get_occupancy_image(env::EnvState)
     fov = 2 * env.params.fov + 1
     ego = get_by_id(env.ego, EGO_ID)
@@ -526,6 +562,10 @@ function get_occupancy_image(env::EnvState)
     result
 end
 
+"""
+    is_crash(env::E; init::Bool=false) where E <: AbstractEnv
+determine crash with egovehicle
+"""
 function is_crash(env::E; init::Bool=false) where E <: AbstractEnv
     # ego = env.scene[findfirst(EGO_ID, env.scene)]
     ego =   try
@@ -560,6 +600,12 @@ function is_crash(env::E; init::Bool=false) where E <: AbstractEnv
     return min_dist, false
 end
 
+"""
+    collision_check(
+            veh₁::Entity{VehicleState, D, Int},
+            veh₂::Entity{VehicleState, D, Int}) where {D}
+check for collision between two vehicles
+"""
 function collision_check(
             veh₁::Entity{VehicleState, D, Int},
             veh₂::Entity{VehicleState, D, Int}) where {D}
