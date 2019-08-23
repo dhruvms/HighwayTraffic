@@ -106,7 +106,7 @@ python train_baseline.py \
 
 ## Author
 
-Developed by Dhruv Mauria Saxena as part of his internship at Honda Research
+Developed by [Dhruv Mauria Saxena](mailto:dhruvsaxena@cmu.edu) as part of his internship at Honda Research
 Institute, USA.
 
 ## Acknowledgements
