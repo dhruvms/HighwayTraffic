@@ -21,7 +21,7 @@ import envs # registers the environment
 from utils import Logger, get_model_name
 
 import multiprocessing as mp
-PYTHON_EXEC = '/home/dsaxena/work/code/python/venvs/p36ws/bin/python'
+PYTHON_EXEC = '/home/dhruv/work/code/python/venvs/p35ws/bin/python'
 mp.set_executable(PYTHON_EXEC)
 
 # import matplotlib.pyplot as plt

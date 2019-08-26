@@ -75,6 +75,7 @@ D. M. Saxena, A. N. Sarveani, S. Bae, K. Fujimura, and M. Likhachev, _Deep Reinf
 
 ## Example
 
+### Training
 A training session can be launched by following the example below. The usage of different parameters can be understood in [this file](./python/external/pytorch_baselines/a2c_ppo_acktr/arguments.py)
 ```
 python train_baseline.py \
@@ -102,6 +103,28 @@ python train_baseline.py \
                             --seed 794 \
                             --hri \
                             --curriculum
+```
+
+### Testing
+```
+python enjoy.py \
+                    --env LaneFollow-v1 \
+                    --algo ppo \
+                    --lr 2.5e-4 \
+                    --num-processes 1 \
+                    --cars 60 \
+                    --base-port 9999 \
+                    --length 1000.0 \
+                    --lanes 2 \
+                    --change \
+                    --beta-dist \
+                    --occupancy \
+                    --seed 794 \
+                    --hri \
+                    --curriculum \
+                    --eval-episodes 10 \
+                    --video \
+                    --write-data && kill -9 `pgrep -f "port 9999"
 ```
 
 ## Author
