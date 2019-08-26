@@ -134,7 +134,7 @@ Optimise MPC trajectory parameters.
 function optimise_trajectory(target::MPCState, params::Vector{Float64},
                             	hyperparams::Vector{Float64};
 								initial::MPCState=nothing,
-								iters::Int64=50, min_cost::Float64=1e-4,
+								iters::Int64=50, min_cost::Float64=1e-6,
 								early_term::Float64=1e-9)
 	a1 = nothing
 	δ1 = nothing
@@ -169,8 +169,8 @@ function optimise_trajectory(target::MPCState, params::Vector{Float64},
 
         α = α_line_search(Δp, params, target, hyperparams, initial)
 		params += α .* Δp
-		# params[1:3] .= clamp!(params[1:3], MIN_a, MAX_a)
-		# params[4:6] .= clamp!(params[4:6], MIN_δ, MAX_δ)
+		params[1:3] .= clamp!(params[1:3], MIN_a, MAX_a)
+		params[4:6] .= clamp!(params[4:6], MIN_δ, MAX_δ)
     end
 
     return params, a1, δ1, s_fin, states

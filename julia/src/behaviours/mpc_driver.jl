@@ -1,4 +1,7 @@
 using Distributions
+using Printf
+
+const CAR_LENGTH = 4.0
 
 include("../mpc/utils.jl")
 include("../mpc/motion_model.jl")
@@ -193,7 +196,7 @@ function AutomotiveDrivingModels.observe!(
     hyperparams = [driver.n, driver.timestep, driver.interp]
     params, a1, δ1, s_fin, _ = optimise_trajectory(target, params, hyperparams, initial=self)
 
-	# @printf("(%2.2f, %2.2f, %2.2f, %2.2f)\n", ego_state.v, target.v, s_fin.v, a1)
+	# @printf("(%2.2f, %2.2f, %2.2f, %2.2f, %2.2f)\n", ego_state.v, target.v, s_fin.v, a1, δ1)
 
 	driver.a = a1
 	driver.δ = δ1
