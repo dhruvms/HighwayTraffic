@@ -12,6 +12,9 @@ from external import *
 import envs # registers the environment
 from utils import get_model_name
 
+# import matplotlib.pyplot as plt
+# fig, ax = plt.subplots(1, 4, sharey=True)
+
 args = get_args()
 if args.model_name is None:
     args.model_name = [0, 1, 2, 3, 4, 5, 6, 7, 8]
@@ -72,6 +75,17 @@ for episode in range(1, args.eval_episodes+1):
         # torch.clamp_(action[:, 1], action_space_lo[1], action_space_hi[1])
         # Observe reward and next obs
         obs, reward, terminal, debug = env.step(action)
+        # ax[0].imshow(obs.data.cpu().numpy()[0, -5, :, :])
+        # ax[1].imshow(obs.data.cpu().numpy()[0, -4, :, :])
+        # ax[2].imshow(obs.data.cpu().numpy()[0, -3, :, :])
+        # ax[3].imshow(obs.data.cpu().numpy()[0, -2, :, :])
+        # ax[0].tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labeltop='off', labelleft='off', labelright='off')
+        # ax[1].tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labeltop='off', labelleft='off', labelright='off')
+        # ax[2].tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labeltop='off', labelleft='off', labelright='off')
+        # ax[3].tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labeltop='off', labelleft='off', labelright='off')
+        # plt.suptitle("Action: ({:.3f}, {:.3f}), Reward: {:.3f}"
+        #                 .format(action[0][0], action[0][1], reward[0][0]))
+        # plt.savefig('temp.png', dpi=300, bbox_inches='tight')
         masks.fill_(0.0 if terminal else 1.0)
         ep_reward += reward
 
