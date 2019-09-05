@@ -62,6 +62,10 @@ mutable struct MPCDriver <: DriverModel{LatLonAccel}
     # time::Float64
 	interp::Int64
 
+    # Acceleration limits
+    amax::Float64
+    amin::Float64
+
     function MPCDriver(
         timestep::Float64;
         rec::SceneRecord=SceneRecord(1, timestep),
@@ -72,6 +76,8 @@ mutable struct MPCDriver <: DriverModel{LatLonAccel}
         noise_θ::Float64=1.0,
         num_params::Int64=6,
 		lookahead::Float64=50.0,
+        amax::Float64=3.0,
+        amin::Float64=9.0
         )
         retval = new()
 
@@ -86,10 +92,13 @@ mutable struct MPCDriver <: DriverModel{LatLonAccel}
         retval.a = NaN
         retval.δ = NaN
 
-        retval.n = 26
+        retval.n = 15
 		retval.timestep = timestep
         # retval.time = 5.0
 		retval.interp = 1
+
+        retval.amax = amax
+        retval.amin = amin
 
         retval
     end
@@ -202,6 +211,88 @@ function AutomotiveDrivingModels.observe!(
 	driver.δ = δ1
 end
 
+function AutomotiveDrivingModels.observe!(
+        driver::MPCDriver, scene::Scene, roadway::Roadway,
+        egoid::Int, start::Frenet, v::Float64, goal::Frenet,
+        mpc_cf::Float64, mpc_cm::Int)
+    # Get trajectory to target point
+    traj, a1, δ1 = get_mpc_trajectory(driver, scene, roadway, egoid,
+                                start, v, goal)
+
+    # Extract mpc_cf fraction of trajectory for collision checking
+    elems = max(Int(ceil(mpc_cf * length(traj))), 1)
+    traj_to_check = traj[1:elems]
+
+    # Check for collision based on mpc_cm
+    ego = scene[findfirst(egoid, scene)]
+    ego_s = ego.state.posF.s
+    ego_t = ego.state.posF.t
+    ego_ϕ = ego.state.posF.ϕ
+    ego_lane = get_lane(roadway, ego.state)
+    fake_ego = nothing
+
+    if mpc_cm == 1 # static
+        for (i, veh) in enumerate(scene)
+            if veh.id ≠ egoid && veh.id ≤ 100
+                # check first state for collision
+                dist = collision_check(ego, veh)
+                if dist ≤ 0
+                    driver.a = max(-driver.amin, -v/driver.timestep)
+                    driver.δ = 0.0
+                    return
+                end
+
+                for p in 2:length(traj_to_check)
+                    pt = traj_to_check[p]
+                    ego_pos = Frenet(ego_lane, ego_s + pt.x, ego_t + pt.y, pt.θ)
+                    fake_ego = Vehicle(VehicleState(ego_pos, roadway, 0.0),
+                                                            VehicleDef(), 999)
+
+                    dist = collision_check(fake_ego, veh)
+                    if dist ≤ 0
+                        driver.a = max(-driver.amin, -v/driver.timestep)
+                        driver.δ = 0.0
+                        return
+                    end
+                end
+            end
+        end
+    else # constant velocity
+        for (i, veh) in enumerate(scene)
+            if veh.id ≠ egoid && veh.id ≤ 100
+                # check first state for collision
+                dist = collision_check(ego, veh)
+                if dist ≤ 0
+                    driver.a = max(-driver.amin, -v/driver.timestep)
+                    driver.δ = 0.0
+                    return
+                end
+
+                for p in 2:length(traj_to_check)
+                    ΔT = driver.timestep * p
+
+                    pt = traj_to_check[p]
+                    ego_pos = Frenet(ego_lane, ego_s + pt.x, ego_t + pt.y, pt.θ)
+                    fake_ego = Vehicle(VehicleState(ego_pos, roadway, 0.0),
+                                                            VehicleDef(), 999)
+
+                    veh′ = propagate(veh, LatLonAccel(0.0, 0.0), roadway, ΔT)
+                    fake_veh = Vehicle(veh′, VehicleDef(), 998)
+
+                    dist = collision_check(fake_ego, fake_veh)
+                    if dist ≤ 0
+                        driver.a = max(-driver.amin, -v/driver.timestep)
+                        driver.δ = 0.0
+                        return
+                    end
+                end
+            end
+        end
+    end
+    driver.a = min(driver.amax, a1)
+    driver.δ = δ1
+end
+
 function get_mpc_trajectory(driver::MPCDriver, scene::Scene, roadway::Roadway,
 							egoid::Int, start::Frenet, v::Float64, goal::Frenet)
 	target = MPCState()
@@ -215,9 +306,9 @@ function get_mpc_trajectory(driver::MPCDriver, scene::Scene, roadway::Roadway,
 	self = MPCState(x=0.0, y=0.0, θ=start.ϕ, v=v, β=0.0)
 	params = zeros(6)
 	hyperparams = [driver.n, driver.timestep, driver.interp]
-	params, _, _, _, states = optimise_trajectory(target, params, hyperparams, initial=self)
+	params, a1, δ1, _, states = optimise_trajectory(target, params, hyperparams, initial=self)
 
-	states
+	(states, a1, δ1)
 end
 
 function set_hyperparams!(model::MPCDriver, hyperparams::Vector{Float64})

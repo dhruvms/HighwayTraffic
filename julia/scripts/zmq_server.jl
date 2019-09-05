@@ -3,8 +3,8 @@ using JSON
 using RLInterface: ZMQTransport, sendresp, recvreq, close
 using ArgParse
 
-include("../src/envs/LaneFollow.jl")
-using .LaneFollow
+include("../src/envs/HighwayTraffic.jl")
+using .HighwayTraffic
 
 # read tcp/ip settings
 s = ArgParseSettings()

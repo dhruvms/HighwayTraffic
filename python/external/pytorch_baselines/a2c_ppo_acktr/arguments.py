@@ -108,7 +108,7 @@ def get_args():
         help='number of environment steps to train (default: 10e6)')
     parser.add_argument(
         '--env-name',
-        default='LaneFollow-v1',
+        default='HighwayTraffic-v1',
         help='environment to train on (default: PongNoFrameskip-v4)')
     parser.add_argument(
         '--save-dir',

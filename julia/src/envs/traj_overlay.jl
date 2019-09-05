@@ -13,6 +13,7 @@ mutable struct TrajOverlay <: SceneOverlay
         new(trajectory, ego_id, line_width, color)
     end
 end
+
 function AutoViz.render!(rendermodel::RenderModel, overlay::TrajOverlay, scene::Scene, roadway::Any)
     ego = scene[findfirst(overlay.ego_id, scene)]
     ego_s = ego.state.posF.s

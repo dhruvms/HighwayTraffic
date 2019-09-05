@@ -44,7 +44,7 @@ function dict_to_simparams(params::Dict)
     lanes = get(params, "lanes", 3)
     cars = get(params, "cars", 30)
     dt = get(params, "dt", 0.2)
-    max_ticks = get(params, "max_steps", 256)
+    max_ticks = get(params, "max_steps", 200)
     stadium = get(params, "stadium", false)
     change = get(params, "change", false)
     both = get(params, "both", false)
@@ -56,6 +56,11 @@ function dict_to_simparams(params::Dict)
     norm_obs = get(params, "norm_obs", true)
     hri = get(params, "hri", false)
     curriculum = get(params, "curriculum", false)
+
+    ego_model = get(params, "ego_model", nothing)
+    mpc_s = get(params, "mpc_s", nothing)
+    mpc_cf = get(params, "mpc_cf", nothing)
+    mpc_cm = get(params, "mpc_cm", nothing)
 
     room = CAR_LENGTH * 1.1
     if curriculum
@@ -130,7 +135,8 @@ function dict_to_simparams(params::Dict)
                 extra_deadends, eval, norm_obs, hri, curriculum,
                 ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
                 j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost,
-                mode, video, write_data)
+                mode, video, write_data,
+                ego_model, mpc_s, mpc_cf, mpc_cm)
 end
 
 """
@@ -302,7 +308,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
             end
 
             η_percept = (rand() - 0.5) * (0.15/0.5)
-            stop_and_go = rand() > 0.75
+            stop_and_go = rand() > 0.5
             models[v_num] = BafflingDriver(params.dt,
                                     η_coop=η_coop,
                                     η_percept=η_percept,
@@ -335,22 +341,22 @@ immediate neighbours used in vector observations
 function get_neighbours(env::EnvState, ego_idx::Int)
     fore_M = get_neighbor_fore_along_lane(env.scene, ego_idx, env.roadway,
                 VehicleTargetPointRear(), VehicleTargetPointRear(),
-                VehicleTargetPointRear(), max_distance_fore=env.params.length)
+                VehicleTargetPointRear(), max_distance_fore=env.params.road)
     fore_L = get_neighbor_fore_along_left_lane(env.scene, ego_idx, env.roadway,
                 VehicleTargetPointRear(), VehicleTargetPointRear(),
-                VehicleTargetPointRear(), max_distance_fore=env.params.length)
+                VehicleTargetPointRear(), max_distance_fore=env.params.road)
     fore_R = get_neighbor_fore_along_right_lane(env.scene, ego_idx, env.roadway,
                 VehicleTargetPointRear(), VehicleTargetPointRear(),
-                VehicleTargetPointRear(), max_distance_fore=env.params.length)
+                VehicleTargetPointRear(), max_distance_fore=env.params.road)
     rear_M = get_neighbor_rear_along_lane(env.scene, ego_idx, env.roadway,
                 VehicleTargetPointFront(), VehicleTargetPointFront(),
-                VehicleTargetPointFront(), max_distance_rear=env.params.length)
+                VehicleTargetPointFront(), max_distance_rear=env.params.road)
     rear_L = get_neighbor_rear_along_left_lane(env.scene, ego_idx, env.roadway,
                 VehicleTargetPointFront(), VehicleTargetPointFront(),
-                VehicleTargetPointFront(), max_distance_rear=env.params.length)
+                VehicleTargetPointFront(), max_distance_rear=env.params.road)
     rear_R = get_neighbor_rear_along_right_lane(env.scene, ego_idx, env.roadway,
                 VehicleTargetPointFront(), VehicleTargetPointFront(),
-                VehicleTargetPointFront(), max_distance_rear=env.params.length)
+                VehicleTargetPointFront(), max_distance_rear=env.params.road)
 
     (fore_M, fore_L, fore_R, rear_M, rear_L, rear_R)
 end
@@ -566,13 +572,17 @@ end
     is_crash(env::E; init::Bool=false) where E <: AbstractEnv
 determine crash with egovehicle
 """
-function is_crash(env::E; init::Bool=false) where E <: AbstractEnv
-    # ego = env.scene[findfirst(EGO_ID, env.scene)]
-    ego =   try
-                Vehicle(get_by_id(env.ego, EGO_ID))
-            catch
-                nothing
-            end
+function is_crash(env::E; init::Bool=false, baseline::Bool=false) where E <: AbstractEnv
+    ego = nothing
+    if !baseline
+        ego =   try
+                    Vehicle(get_by_id(env.ego, EGO_ID))
+                catch
+                    nothing
+                end
+    else
+        ego = env.scene[findfirst(EGO_ID, env.scene)]
+    end
 
     min_dist = Inf
     if !init

@@ -79,7 +79,7 @@ D. M. Saxena, A. N. Sarveani, S. Bae, K. Fujimura, and M. Likhachev, _Deep Reinf
 A training session can be launched by following the example below. The usage of different parameters can be understood in [this file](./python/external/pytorch_baselines/a2c_ppo_acktr/arguments.py)
 ```
 python train_baseline.py \
-                            --env-name LaneFollow-v1 \
+                            --env-name HighwayTraffic-v1 \
                             --algo ppo \
                             --use-gae \
                             --lr 2.5e-4 \
@@ -108,7 +108,7 @@ python train_baseline.py \
 ### Testing
 ```
 python enjoy.py \
-                    --env LaneFollow-v1 \
+                    --env HighwayTraffic-v1 \
                     --algo ppo \
                     --lr 2.5e-4 \
                     --num-processes 1 \

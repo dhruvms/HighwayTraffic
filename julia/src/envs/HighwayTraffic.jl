@@ -1,4 +1,4 @@
-module LaneFollow
+module HighwayTraffic
 
 using AutomotiveDrivingModels
 using AutoViz
@@ -23,9 +23,9 @@ initialise simulator environment
 """
 function make_env(params::EnvParams)
     if params.stadium
-        roadway = gen_stadium_roadway(params.lanes, length=params.length, width=0.0, radius=10.0)
+        roadway = gen_stadium_roadway(params.lanes, length=params.road, width=0.0, radius=10.0)
     else
-        roadway = gen_straight_roadway(params.lanes, params.length)
+        roadway = gen_straight_roadway(params.lanes, params.road)
     end
 
     ego, lanetag = get_initial_egostate(params, roadway)
@@ -78,12 +78,14 @@ function make_env(params::EnvParams)
     end
 
     prev_shaping = nothing
+    ego_model = nothing
 
     EnvState(params, roadway, scene, rec, ego, action_state, lanetag, steps,
                 mpc,
                 in_lane, lane_ticks, victim_id,
                 merge_tick, min_dist, lane_dist, car_data, ego_data,
-                models, colours, prev_shaping)
+                models, colours, prev_shaping,
+                ego_model)
 end
 
 """
@@ -186,7 +188,7 @@ function is_terminal(env::EnvState; init::Bool=false)
     # done = done || (ego.state.state.v < 0.0) # vehicle has negative velocity
     min_dist, crash = is_crash(env, init=init)
     if (abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0) || # off roadway
-        crash
+                                                                crash
         done = true
         final_r = -100.0
     end
@@ -215,7 +217,7 @@ function is_terminal(env::EnvState; init::Bool=false)
     #         max_s = veh.state.posF.s
     #     end
     # end
-    # done = done || (max_s ≥ env.params.length * 0.95)
+    # done = done || (max_s ≥ env.params.road * 0.95)
 
     done, final_r, min_dist
 end

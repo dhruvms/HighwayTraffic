@@ -5,7 +5,7 @@ abstract type AbstractParams end
 abstract type AbstractEnv end
 
 mutable struct EnvParams <: AbstractParams
-    length::Float64 # length of roadway
+    road::Float64 # length of roadway
     lanes::Int # number of lanes in roadway
     cars::Int # number of cars on roadway, including egovehicle
     dt::Float64 # timestep
@@ -42,6 +42,11 @@ mutable struct EnvParams <: AbstractParams
     mode::String # types of other vehicles (mixed/cooperative/aggressive)
     video::Bool # save video
     write_data::Bool # save data file
+
+    ego_model::Union{Int, Nothing} # ego model for baseline
+    mpc_s::Union{Int, Nothing} # MPC lookahead
+    mpc_cf::Union{Float64, Nothing} # MPC collision check fraction
+    mpc_cm::Union{Int, Nothing} # MPC collision check scheme
 end
 
 mutable struct EnvState <: AbstractEnv
@@ -72,6 +77,8 @@ mutable struct EnvState <: AbstractEnv
     colours::Dict{Int, Colorant}
 
     prev_shaping::Union{Float64, Nothing} # used in action reward calculation
+
+    ego_model::Union{DriverModel, Nothing} # used for baselines
 end
 Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene),
                                     e.rec, e.ego, copy(e.action_state),
@@ -80,7 +87,8 @@ Base.copy(e::EnvState) = EnvState(e.params, e.roadway, deepcopy(e.scene),
                                     e.merge_tick, e.min_dist, copy(e.lane_dist),
                                     copy(e.car_data), copy(e.ego_data),
                                     copy(e.other_cars), copy(e.colours),
-                                    e.prev_shaping)
+                                    e.prev_shaping,
+                                    e.ego_model)
 
 
 # action limits

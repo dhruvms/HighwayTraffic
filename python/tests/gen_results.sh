@@ -15,7 +15,7 @@ gen_results()
         echo "Cars: " ${CARS} ", Lanes: " ${LANES} ", Seed: " ${SEED}
         echo
 
-        python enjoy.py --env-name LaneFollow-v1 --algo ppo --num-processes 1 \
+        python enjoy.py --env-name HighwayTraffic-v1 --algo ppo --num-processes 1 \
                 --eval-episodes 200 --base-port 9999 --cars ${CARS} \
                 --length 1000.0 --lanes ${LANES} --change --beta-dist \
                 --occupancy --max-steps 200 --lr 2.5e-4 --seed ${SEED} \
@@ -23,7 +23,7 @@ gen_results()
                 --eval-mode mixed --eval-folder mixed
         kill -9 $(pgrep -f "port 9999")
 
-        python enjoy.py --env-name LaneFollow-v1 --algo ppo --num-processes 1 \
+        python enjoy.py --env-name HighwayTraffic-v1 --algo ppo --num-processes 1 \
                 --eval-episodes 200 --base-port 9999 --cars ${CARS} \
                 --length 1000.0 --lanes ${LANES} --change --beta-dist \
                 --occupancy --max-steps 200 --lr 2.5e-4 --seed ${SEED} \
@@ -31,7 +31,7 @@ gen_results()
                 --eval-mode cooperative --eval-folder cooperative
         kill -9 $(pgrep -f "port 9999")
 
-        python enjoy.py --env-name LaneFollow-v1 --algo ppo --num-processes 1 \
+        python enjoy.py --env-name HighwayTraffic-v1 --algo ppo --num-processes 1 \
                 --eval-episodes 200 --base-port 9999 --cars ${CARS} \
                 --length 1000.0 --lanes ${LANES} --change --beta-dist \
                 --occupancy --max-steps 200 --lr 2.5e-4 --seed ${SEED} \
