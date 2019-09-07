@@ -58,15 +58,13 @@ end
 
 """
 	generate_trajectory!(s::MPCState, params::Vector{Float64},
-								hyperparams::Vector{Float64};
-								noisy::Bool=false)
+								hyperparams::Vector{Float64};)
 Given a set of parameters that define the acceleration and steering polynomials
 over time, generate a bicycle model trajectory from the initial state for a
 duration specified by the hyperparameters.
 """
 function generate_trajectory!(s::MPCState, params::Vector{Float64},
-								hyperparams::Vector{Float64};
-								noisy::Bool=false)
+								hyperparams::Vector{Float64};)
 	n, timestep, interp = hyperparams
 	time = timestep * n
 	t_knots = [0.0, time/2.0, time]
@@ -81,18 +79,9 @@ function generate_trajectory!(s::MPCState, params::Vector{Float64},
 	a_interm = a_spline(times)
 	δ_interm = δ_spline(times)
 
-	noise_a = OrnsteinUhlenbeckNoise([0.0], 0.2, θ=1.0)
-	noise_δ = OrnsteinUhlenbeckNoise([0.0], 0.2, θ=1.0)
-
 	states = [copy(s)]
     for i in 1:Base.length(times)-1
-		if noisy
-			a_noise = OrnsteinUhlenbeckNoise!(noise_a, timestep)
-			δ_noise = OrnsteinUhlenbeckNoise!(noise_δ, timestep)
-			update_mpc_state!(s, a_interm[i] + a_noise[1], δ_interm[i] + δ_noise[1], timestep)
-		else
-			update_mpc_state!(s, a_interm[i], δ_interm[i], timestep)
-		end
+		update_mpc_state!(s, a_interm[i], δ_interm[i], timestep)
 		push!(states, copy(s))
 	end
 
@@ -101,14 +90,11 @@ end
 
 """
 	generate_last_state!(s::MPCState, params::Vector{Float64},
-								hyperparams::Vector{Float64};
-								noisy::Bool=false)
+								hyperparams::Vector{Float64};)
 Return the last state of the generated trajectory.
 """
 function generate_last_state!(s::MPCState, params::Vector{Float64},
-								hyperparams::Vector{Float64};
-								noisy::Bool=false)
-	last, _, _ = generate_trajectory!(s, params, hyperparams::Vector{Float64},
-									noisy=noisy)
+								hyperparams::Vector{Float64};)
+	last, _, _ = generate_trajectory!(s, params, hyperparams::Vector{Float64},)
 	return last
 end

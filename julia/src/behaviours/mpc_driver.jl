@@ -19,10 +19,6 @@ a model predictive control (MPC) optimisation, and executes the first control.
 	MPCDriver(timestep::Float64;
 	rec::SceneRecord=SceneRecord(1, timestep),
 	σ::Float64=1.0,
-	noisy::Bool=false,
-	noise_μ::Float64=0.0,
-	noise_σ::Float64=0.2,
-	noise_θ::Float64=1.0,
 	num_params::Int64=6,
 	lookahead::Float64=50.0,
 	v_des::Float64=10.0,
@@ -32,10 +28,6 @@ a model predictive control (MPC) optimisation, and executes the first control.
 - `timestep::Float64` Simulation timestep. Also used as MPC timetep
 - `rec::SceneRecord` A record that will hold the resulting simulation results
 - `σ::Float64 = 1.0` PDF variance
-- `noisy::Bool = false` Flag for adding noise to driver actions
-- `noise_μ::Float64 = 0.0` Noise model parameter
-- `noise_σ::Float64 = 0.2` Noise model parameter
-- `noise_θ::Float64 = 1.0` Noise model parameter
 - `num_params::Int64 = 6` MPC optimisation parameters (fixed)
 - `lookahead::Float64 = 50.0` Lane lookahead distance
 - `a::Float64` Longitudinal acceleration output
@@ -46,10 +38,6 @@ a model predictive control (MPC) optimisation, and executes the first control.
 mutable struct MPCDriver <: DriverModel{LatLonAccel}
     rec::SceneRecord
     σ::Float64
-    noisy::Bool
-    noise_μ::Float64
-    noise_σ::Float64
-    noise_θ::Float64
 	lookahead::Float64
 
     # Outputs
@@ -70,10 +58,6 @@ mutable struct MPCDriver <: DriverModel{LatLonAccel}
         timestep::Float64;
         rec::SceneRecord=SceneRecord(1, timestep),
         σ::Float64=1.0,
-        noisy::Bool=false,
-        noise_μ::Float64=0.0,
-        noise_σ::Float64=0.2,
-        noise_θ::Float64=1.0,
         num_params::Int64=6,
 		lookahead::Float64=50.0,
         amax::Float64=3.0,
@@ -83,10 +67,6 @@ mutable struct MPCDriver <: DriverModel{LatLonAccel}
 
         retval.rec = rec
         retval.σ = σ
-        retval.noisy = noisy
-        retval.noise_μ = noise_μ
-        retval.noise_σ = noise_σ
-        retval.noise_θ = noise_θ
 		retval.lookahead = lookahead
 
         retval.a = NaN
