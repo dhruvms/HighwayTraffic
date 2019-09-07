@@ -34,8 +34,8 @@ def make_env(args, env_id, seed, rank, log_dir, allow_early_resets):
         if env_id.startswith("dm"):
             _, domain, task = env_id.split('.')
             env = dm_control2gym.make(domain_name=domain, task_name=task)
-        # HighwayTraffic: init and reset Lane* environments here
-        elif env_id.startswith("Lane"):
+        # HighwayTraffic: init and reset environments here
+        elif env_id.startswith("Highway"):
             env = gym.make(env_id)
             args.port = args.base_port + rank
             env.reset(args)
@@ -71,7 +71,7 @@ def make_env(args, env_id, seed, rank, log_dir, allow_early_resets):
 
         # If the input has shape (W,H,3), wrap for PyTorch convolutions
         obs_shape = env.observation_space.shape
-        if (not env_id.startswith("Lane")) and \
+        if (not env_id.startswith("Highway")) and \
                 len(obs_shape) == 3 and obs_shape[2] in [1, 3]:
             env = TransposeImage(env, op=[2, 0, 1])
 
