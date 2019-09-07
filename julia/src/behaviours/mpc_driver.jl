@@ -45,10 +45,12 @@ mutable struct MPCDriver <: DriverModel{LatLonAccel}
 	δ::Float64
 
     # MPC Hyperparameters
+    num_params::Int64
     n::Int64
 	timestep::Float64
     # time::Float64
 	interp::Int64
+    weight::Bool
 
     # Acceleration limits
     amax::Float64
@@ -58,7 +60,8 @@ mutable struct MPCDriver <: DriverModel{LatLonAccel}
         timestep::Float64;
         rec::SceneRecord=SceneRecord(1, timestep),
         σ::Float64=1.0,
-        num_params::Int64=6,
+        num_params::Int64=8,
+        weight::Bool=false,
 		lookahead::Float64=50.0,
         amax::Float64=3.0,
         amin::Float64=9.0
@@ -75,7 +78,9 @@ mutable struct MPCDriver <: DriverModel{LatLonAccel}
         retval.n = 15
 		retval.timestep = timestep
         # retval.time = 5.0
-		retval.interp = 1
+		retval.interp = 3
+        retval.num_params = Bool(num_params % 2) ? num_params + 1 : num_params
+        retval.weight = weight
 
         retval.amax = amax
         retval.amin = amin
@@ -181,9 +186,10 @@ function AutomotiveDrivingModels.observe!(
 
 	# Step 3
 	self = MPCState(x=0.0, y=0.0, θ=ego_state.posF.ϕ, v=ego_state.v, β=0.0)
-    params = zeros(6)
+    params = zeros(driver.num_params)
     hyperparams = [driver.n, driver.timestep, driver.interp]
-    params, a1, δ1, s_fin, _ = optimise_trajectory(target, params, hyperparams, initial=self)
+    params, a1, δ1, s_fin, _ = optimise_trajectory(target, params, hyperparams,
+                                            initial=self, weight=driver.weight)
 
 	# @printf("(%2.2f, %2.2f, %2.2f, %2.2f, %2.2f)\n", ego_state.v, target.v, s_fin.v, a1, δ1)
 
@@ -284,9 +290,10 @@ function get_mpc_trajectory(driver::MPCDriver, scene::Scene, roadway::Roadway,
 
 	# Step 3
 	self = MPCState(x=0.0, y=0.0, θ=start.ϕ, v=v, β=0.0)
-	params = zeros(6)
+	params = zeros(driver.num_params)
 	hyperparams = [driver.n, driver.timestep, driver.interp]
-	params, a1, δ1, _, states = optimise_trajectory(target, params, hyperparams, initial=self)
+	_, a1, δ1, _, states = optimise_trajectory(target, params, hyperparams,
+                                            initial=self, weight=driver.weight)
 
 	(states, a1, δ1)
 end

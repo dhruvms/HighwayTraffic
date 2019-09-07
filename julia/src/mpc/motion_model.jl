@@ -65,11 +65,12 @@ duration specified by the hyperparameters.
 """
 function generate_trajectory!(s::MPCState, params::Vector{Float64},
 								hyperparams::Vector{Float64};)
+	degree = Int(length(params) / 2)
 	n, timestep, interp = hyperparams
-	time = timestep * n
-	t_knots = [0.0, time/2.0, time]
-	a_knots = params[1:3]
-	δ_knots = params[4:6]
+	T = timestep * n
+	t_knots = collect(range(0, length=degree, stop=T))
+	a_knots = params[1:degree]
+	δ_knots = params[degree+1:end]
 
 	a_spline = Spline1D(t_knots, a_knots; k=Int64(interp))
 	δ_spline = Spline1D(t_knots, δ_knots; k=Int64(interp))

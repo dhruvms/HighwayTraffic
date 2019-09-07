@@ -106,7 +106,7 @@ function make_env(params::EnvParams)
 	                            )
     	else
     		# MPC
-    		ego_model = MPCDriver(params.dt)
+    		ego_model = MPCDriver(params.dt, weight=true)
     	end
     end
 
