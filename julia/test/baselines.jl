@@ -50,13 +50,17 @@ s = ArgParseSettings(autofix_names=true)
         help = "(randomised) curriculum of cars and gaps during training"
         arg_type = Bool
         default = false
+    "--gap"
+        help = "gap between cars"
+        arg_type = Float64
+        default = 1.1
     "--ego-model"
         help = "ego model for baseline"
         arg_type = Int64
         default = 1
     "--mpc-s"
         help = "MPC lookahead"
-        arg_type = Int64
+        arg_type = Float64
         default = nothing
     "--mpc-cf"
         help = "MPC collision check fraction"
@@ -88,17 +92,36 @@ s = ArgParseSettings(autofix_names=true)
         help = "results folder"
         arg_type = String
         default = "../data/"
+    "--eval"
+        help = "eval mode flag"
+        arg_type = Bool
+        default = false
 end
 
 parsed_args = parse_args(ARGS, s)
 results_dir = parsed_args["save_folder"]
+
+lanes = parsed_args["lanes"]
+cars = parsed_args["cars"]
+gap = parsed_args["gap"]
+exp_dir = "$cars-Cars_$lanes-Lanes_$gap-Gap/" * parsed_args["eval_mode"] * "/"
+results_dir *= exp_dir
+if occursin("../data/", results_dir)
+	parsed_args["gap"] += 0.5
+
 if parsed_args["ego_model"] == 1
 	results_dir *= "IDM-MOBIL/"
 else
-	s = parsed_args["mpc_s"]
-	cf = parsed_args["mpc_cf"]
-	cm = parsed_args["mpc_cm"]
-	results_dir *= "MPC($s, $cf, $cm)/"
+	if occursin("data2", results_dir)
+		cars = parsed_args["cars"]
+		gap = parsed_args["gap"]
+		results_dir *= "$cars-Cars_$gap-Gap/"
+	else
+		s = parsed_args["mpc_s"]
+		cf = parsed_args["mpc_cf"]
+		cm = parsed_args["mpc_cm"]
+		results_dir *= "MPC_$s-$cf-$cm/"
+	end
 end
 results_dir *= Dates.format(Dates.now(), "yyyymmdd-HHMMSS") * "/"
 mkpath(results_dir)

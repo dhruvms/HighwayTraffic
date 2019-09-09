@@ -22,6 +22,7 @@ mutable struct EnvParams <: AbstractParams
     norm_obs::Bool # normalise observations
     hri::Bool # HRI specific test case
     curriculum::Bool # (randomised) curriculum of cars and gaps during training
+    gap::Float64 # gap between cars
 
     ego_pos::Int # location of egovehicle, between [1, cars]
     v_des::Float64 # desired velocity

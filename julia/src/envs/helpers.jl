@@ -56,13 +56,14 @@ function dict_to_simparams(params::Dict)
     norm_obs = get(params, "norm_obs", true)
     hri = get(params, "hri", false)
     curriculum = get(params, "curriculum", false)
+    gap = get(params, "gap", 1.1)
 
     ego_model = get(params, "ego_model", nothing)
     mpc_s = get(params, "mpc_s", nothing)
     mpc_cf = get(params, "mpc_cf", nothing)
     mpc_cm = get(params, "mpc_cm", nothing)
 
-    room = CAR_LENGTH * 1.1
+    room = CAR_LENGTH * gap
     if curriculum
         cars = rand(10:cars)
         room = (room * rand() + 6.0)
@@ -104,11 +105,11 @@ function dict_to_simparams(params::Dict)
         if lanes == 2
             valid = collect(1:2:cars)
             num_valid = length(valid)
-            ego_pos = rand(valid[max(num_valid-4, 1):end])
+            ego_pos = rand(valid[max(num_valid-10, 1):end])
         elseif lanes == 3
             valid = collect(2:3:cars)
             num_valid = length(valid)
-            ego_pos = rand(valid[max(num_valid-4, 1):end])
+            ego_pos = rand(valid[max(num_valid-10, 1):end])
         end
     end
 
@@ -132,7 +133,7 @@ function dict_to_simparams(params::Dict)
 
     EnvParams(road, lanes, cars, dt, max_ticks, rooms, stadium, change, both,
                 fov, beta, clamp,
-                extra_deadends, eval, norm_obs, hri, curriculum,
+                extra_deadends, eval, norm_obs, hri, curriculum, gap,
                 ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
                 j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost,
                 mode, video, write_data,
@@ -199,7 +200,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
     push!(scene, Vehicle(ego))
     carcolours[EGO_ID] = COLOR_CAR_EGO
 
-    room = CAR_LENGTH * 1.1
+    room = CAR_LENGTH * params.gap
     ego_lane = Int(params.lanes - (params.ego_pos % params.lanes))
     ego_s = params.rooms[ego_lane, Int(ceil(params.ego_pos/params.lanes))]
     s_deadend = ego_s + (35.0 * rand() + 5.0)

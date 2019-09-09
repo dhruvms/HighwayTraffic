@@ -1,13 +1,13 @@
 using LinearAlgebra
 using Dierckx
 
-const Δa = 0.01
-const Δδ = 0.001
+const Δa = 0.1
+const Δδ = 0.1
 const MAX_a = 3.5
 const MIN_a = -4.0
 const MAX_δ = 0.6
 const MIN_δ = -0.6
-const W = [20.0, 20.0, 10.0, 1.0, 0.01]
+const W = [1.0, 1.0, 1.0, 0.5, 0.01]
 
 """
 	state_cost(s::MPCState; p::Int64=2, weight::Bool=false)
@@ -33,7 +33,7 @@ function traj_cost!(s::MPCState, params::Vector{Float64}, target::MPCState,
 					λ::Float64=1.0, p::Int64=2, weight::Bool=false)
 	s = generate_last_state!(s, params, hyperparams)
 	Δs = state_diff(target, s)
-	return state_cost(Δs, p=p, weight=weight) + λ*norm(params)
+	return state_cost(Δs, p=p, weight=weight) #+ λ*norm(params)
 end
 
 function state_diff(target::MPCState, curr::MPCState)
@@ -106,7 +106,7 @@ function α_line_search(Δp::Vector{Float64}, params::Vector{Float64},
 	set_initial_state!(s, initial)
 
 	best_α = nothing
-    for α in 1.0:0.1:2.0
+    for α in 1.0:0.05:2.0
 		if α != 0
 	        test_params = params .+ (α .* Δp)
 	    	c = traj_cost!(s, test_params, target, hyperparams,

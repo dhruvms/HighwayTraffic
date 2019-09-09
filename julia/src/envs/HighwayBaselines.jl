@@ -106,7 +106,7 @@ function make_env(params::EnvParams)
 	                            )
     	else
     		# MPC
-    		ego_model = MPCDriver(params.dt, weight=true)
+    		ego_model = MPCDriver(params.dt, weight=false)
     	end
     end
 
@@ -191,15 +191,15 @@ function is_terminal(env::EnvState; init::Bool=false)
         final_r = +100.0
     end
 
-    if crash
-    	println("CRASH")
-    elseif abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0
-    	println("OFF ROAD")
-    elseif env.steps ≥ env.params.max_ticks
-    	println("TIMEOUT")
-    elseif done
-    	println("SUCCESS!")
-    end
+    # if crash
+    # 	println("CRASH")
+    # elseif abs(road_proj.curveproj.t) > DEFAULT_LANE_WIDTH/2.0
+    # 	println("OFF ROAD")
+    # elseif env.steps ≥ env.params.max_ticks
+    # 	println("TIMEOUT")
+    # elseif done
+    # 	println("SUCCESS!")
+    # end
 
     done, final_r, min_dist
 end

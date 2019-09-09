@@ -55,6 +55,9 @@ mutable struct MPCDriver <: DriverModel{LatLonAccel}
     # Acceleration limits
     amax::Float64
     amin::Float64
+    # Steering limits
+    δmax::Float64
+    δmin::Float64
 
     function MPCDriver(
         timestep::Float64;
@@ -63,8 +66,10 @@ mutable struct MPCDriver <: DriverModel{LatLonAccel}
         num_params::Int64=8,
         weight::Bool=false,
 		lookahead::Float64=50.0,
-        amax::Float64=3.0,
-        amin::Float64=9.0
+        amax::Float64=3.5,
+        amin::Float64=4.0,
+        δmax::Float64=0.6,
+        δmin::Float64=0.6
         )
         retval = new()
 
@@ -75,15 +80,17 @@ mutable struct MPCDriver <: DriverModel{LatLonAccel}
         retval.a = NaN
         retval.δ = NaN
 
-        retval.n = 15
+        retval.n = 30
 		retval.timestep = timestep
         # retval.time = 5.0
-		retval.interp = 3
+		retval.interp = 2
         retval.num_params = Bool(num_params % 2) ? num_params + 1 : num_params
         retval.weight = weight
 
         retval.amax = amax
         retval.amin = amin
+        retval.δmax = δmax
+        retval.δmin = δmin
 
         retval
     end
@@ -275,8 +282,8 @@ function AutomotiveDrivingModels.observe!(
             end
         end
     end
-    driver.a = min(driver.amax, a1)
-    driver.δ = δ1
+    driver.a = clamp(a1, -driver.amin, driver.amax)
+    driver.δ = clamp(δ1, -driver.δmin, driver.δmax)
 end
 
 function get_mpc_trajectory(driver::MPCDriver, scene::Scene, roadway::Roadway,
