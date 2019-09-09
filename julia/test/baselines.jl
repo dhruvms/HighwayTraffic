@@ -108,6 +108,7 @@ exp_dir = "$cars-Cars_$lanes-Lanes_$gap-Gap/" * parsed_args["eval_mode"] * "/"
 results_dir *= exp_dir
 if occursin("../data/", results_dir)
 	parsed_args["gap"] += 0.5
+end
 
 if parsed_args["ego_model"] == 1
 	results_dir *= "IDM-MOBIL/"
