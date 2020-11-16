@@ -57,20 +57,21 @@ function dict_to_simparams(params::Dict)
     hri = get(params, "hri", false)
     curriculum = get(params, "curriculum", false)
     gap = get(params, "gap", 1.1)
+    stopgo = get(params, "stopgo", false)
 
     ego_model = get(params, "ego_model", nothing)
     mpc_s = get(params, "mpc_s", nothing)
     mpc_cf = get(params, "mpc_cf", nothing)
     mpc_cm = get(params, "mpc_cm", nothing)
 
+    if eval && hri
+        cars = get(params, "testcars", 60)
+    end
+
     room = CAR_LENGTH * gap
     if curriculum
         cars = rand(10:cars)
         room = (room * rand() + 6.0)
-    end
-
-    if eval && hri
-        cars = max(30, cars)
     end
 
     cars_per_lane = Int(ceil(cars/lanes))
@@ -121,12 +122,6 @@ function dict_to_simparams(params::Dict)
     t_cost = get(params, "t_cost", 10.0)
     deadend_cost = get(params, "end_cost", 1.0)
 
-    # # costs = [j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost]
-    # costs = [v_cost, ϕ_cost, t_cost, deadend_cost]
-    # costs = costs ./ sum(costs)
-    # # j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost = costs
-    # v_cost, ϕ_cost, t_cost, deadend_cost = costs
-
     mode = get(params, "eval_mode", "mixed")
     video = get(params, "video", false)
     write_data = get(params, "write_data", false)
@@ -137,7 +132,7 @@ function dict_to_simparams(params::Dict)
                 ego_pos, v_des, ego_dim, other_dim, o_dim, occupancy,
                 j_cost, δdot_cost, a_cost, v_cost, ϕ_cost, t_cost, deadend_cost,
                 mode, video, write_data,
-                ego_model, mpc_s, mpc_cf, mpc_cm)
+                ego_model, mpc_s, mpc_cf, mpc_cm, stopgo)
 end
 
 """
@@ -159,19 +154,6 @@ function get_initial_egostate(params::EnvParams, roadway::Roadway{Float64})
     lane0 = LaneTag(segment, lane)
     s0 = params.rooms[lane, Int(ceil(params.ego_pos/params.lanes))]
     v0 = rand() + 1.0
-
-    # gap = try
-    #     params.rooms[lane, Int(ceil(params.ego_pos/params.lanes))+1] - s0 -
-    #                                                                 CAR_LENGTH
-    # catch
-    #     Inf
-    # end
-    # t_stop = 1.5
-    # stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
-    # while stop_dist > gap
-    #     v0 *= 0.9
-    #     stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
-    # end
 
     t0 = (rand() - 0.5) * (DEFAULT_LANE_WIDTH/2.0)
     ϕ0 = (2 * rand() - 1) * 0.1
@@ -198,7 +180,7 @@ function populate_scene(params::P, roadway::Roadway{Float64},
     models = Dict{Int, DriverModel}()
 
     push!(scene, Vehicle(ego))
-    carcolours[EGO_ID] = COLOR_CAR_EGO
+    carcolours[EGO_ID] = HSV(0, 1.0, 0.95)
 
     room = CAR_LENGTH * params.gap
     ego_lane = Int(params.lanes - (params.ego_pos % params.lanes))
@@ -262,23 +244,9 @@ function populate_scene(params::P, roadway::Roadway{Float64},
             continue
         end
 
-        type = rand()
-
         lane0 = LaneTag(segment, lane)
         s0 = params.rooms[lane, Int(ceil(i/params.lanes))]
         v0 = rand() + 1.0
-
-        # gap = try
-        #     params.rooms[lane, Int(ceil(i/params.lanes))+1] - s0 - CAR_LENGTH
-        # catch
-        #     Inf
-        # end
-        # t_stop = 1.5
-        # stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
-        # while stop_dist > gap
-        #     v0 *= 0.9
-        #     stop_dist = v0 * t_stop - 0.5 * 2.0 * t_stop^2
-        # end
 
         t0 = (rand() - 0.5) * (DEFAULT_LANE_WIDTH/2.0)
         ϕ0 = (2 * rand() - 1) * 0.1
@@ -286,47 +254,41 @@ function populate_scene(params::P, roadway::Roadway{Float64},
         # ϕ0 = 0.0
         posF = Frenet(roadway[lane0], s0, t0, ϕ0)
 
+        if lane0 == lane_deadend.tag && s0 > s_deadend
+            continue
+        end
+
         push!(scene, Vehicle(VehicleState(posF, roadway, v0),
                                                         VehicleDef(), v_num))
         # push!(scene, Vehicle(VehicleState(posF, roadway, 0.0),
         #                                                 VehicleDef(), v_num))
-        if type < 0.0
-            models[v_num] = MPCDriver(params.dt)
-            v0 = 0.0
-            carcolours[v_num] = try
-                MONOKAI["color3"]
-            catch
-                MONOKAY["color3"]
-            end
+        η_coop = nothing
+        if params.mode == "cooperative"
+            η_coop = 1.0
+        elseif params.mode == "aggressive"
+            η_coop = 0.0
         else
-            η_coop = nothing
-            if params.mode == "cooperative"
-                η_coop = 1.0
-            elseif params.mode == "aggressive"
-                η_coop = 0.0
-            else
-                η_coop = rand()
-            end
-
-            η_percept = (rand() - 0.5) * (0.15/0.5)
-            stop_and_go = rand() > 0.5
-            models[v_num] = BafflingDriver(params.dt,
-                                    η_coop=η_coop,
-                                    η_percept=η_percept,
-                                    isStopAndGo=stop_and_go,
-                                    stop_go_cycle=(rand()*5.0)+12.5,
-                                    stop_period=(rand()*2.0)+7.0,
-                                    mlon=BafflingLongitudinalTracker(
-                                        δ=rand()+3.5,
-                                        T=rand()+1.0,
-                                        s_min=(rand()*2.0)+1.0,
-                                        a_max=rand()+2.5,
-                                        d_cmf=rand()+1.5,
-                                        ΔT=params.dt,
-                                        ),
-                                    )
-            carcolours[v_num] = HSV(0, 1.0 - η_coop, 1.0)
+            η_coop = rand()
         end
+
+        η_percept = (rand() - 0.5) * (0.15/0.5)
+        stop_and_go = params.stopgo ? rand() > 0.5 : false
+        models[v_num] = BafflingDriver(params.dt,
+                                η_coop=η_coop,
+                                η_percept=η_percept,
+                                isStopAndGo=stop_and_go,
+                                stop_go_cycle=(rand()*5.0)+12.5,
+                                stop_period=(rand()*2.0)+7.0,
+                                mlon=BafflingLongitudinalTracker(
+                                    δ=rand()+3.5,
+                                    T=rand()+1.0,
+                                    s_min=(rand()*2.0)+1.0,
+                                    a_max=rand()+2.5,
+                                    d_cmf=rand()+1.5,
+                                    ΔT=params.dt,
+                                    ),
+                                )
+        carcolours[v_num] = HSV(110, η_coop, 0.9)
         v_des = (rand() * 3.0) + 2.0
         AutomotiveDrivingModels.set_desired_speed!(models[v_num], v_des)
         v_num += 1

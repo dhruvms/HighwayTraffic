@@ -48,6 +48,8 @@ mutable struct EnvParams <: AbstractParams
     mpc_s::Union{Int, Nothing} # MPC lookahead
     mpc_cf::Union{Float64, Nothing} # MPC collision check fraction
     mpc_cm::Union{Int, Nothing} # MPC collision check scheme
+
+    stopgo::Bool # add stop and go behaviour
 end
 
 mutable struct EnvState <: AbstractEnv

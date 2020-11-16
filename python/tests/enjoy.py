@@ -12,8 +12,8 @@ from external import *
 import envs # registers the environment
 from utils import get_model_name
 
-# import matplotlib.pyplot as plt
-# fig, ax = plt.subplots(1, 4, sharey=True)
+import matplotlib.pyplot as plt
+fig, ax = plt.subplots(1, 4, sharey=True)
 
 args = get_args()
 if args.model_name is None:
@@ -21,6 +21,7 @@ if args.model_name is None:
 
 model_name = get_model_name(args)
 expdir = args.save_dir + model_name + '/'
+# expdir = args.save_dir + 'no-stop-and-go/curriculum/' + model_name + '/'
 args.log_dir = expdir + 'logs/'
 args.model_dir = expdir + 'model/'
 
@@ -38,7 +39,7 @@ action_space_lo = env.action_space.low
 render_func = get_render_func(env)
 timestr = time.strftime("%Y%m%d-%H%M%S")
 if args.eval_folder:
-    viddir = expdir + 'vids/' + args.eval_folder + '/'
+    viddir = expdir + 'vids/' + args.eval_folder + '/' #+ "{}-Cars_{}-Gap/".format(args.testcars, args.gap)
 else:
     viddir = expdir + 'vids/' + timestr + '/'
 if not os.path.exists(viddir):
@@ -75,17 +76,17 @@ for episode in range(1, args.eval_episodes+1):
         # torch.clamp_(action[:, 1], action_space_lo[1], action_space_hi[1])
         # Observe reward and next obs
         obs, reward, terminal, debug = env.step(action)
-        # ax[0].imshow(obs.data.cpu().numpy()[0, -5, :, :])
-        # ax[1].imshow(obs.data.cpu().numpy()[0, -4, :, :])
-        # ax[2].imshow(obs.data.cpu().numpy()[0, -3, :, :])
-        # ax[3].imshow(obs.data.cpu().numpy()[0, -2, :, :])
-        # ax[0].tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labeltop='off', labelleft='off', labelright='off')
-        # ax[1].tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labeltop='off', labelleft='off', labelright='off')
-        # ax[2].tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labeltop='off', labelleft='off', labelright='off')
-        # ax[3].tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labeltop='off', labelleft='off', labelright='off')
-        # plt.suptitle("Action: ({:.3f}, {:.3f}), Reward: {:.3f}"
-        #                 .format(action[0][0], action[0][1], reward[0][0]))
-        # plt.savefig('temp.png', dpi=300, bbox_inches='tight')
+        ax[0].imshow(obs.data.cpu().numpy()[0, -5, :, :])
+        ax[1].imshow(obs.data.cpu().numpy()[0, -4, :, :])
+        ax[2].imshow(obs.data.cpu().numpy()[0, -3, :, :])
+        ax[3].imshow(obs.data.cpu().numpy()[0, -2, :, :])
+        ax[0].tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labeltop='off', labelleft='off', labelright='off')
+        ax[1].tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labeltop='off', labelleft='off', labelright='off')
+        ax[2].tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labeltop='off', labelleft='off', labelright='off')
+        ax[3].tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labeltop='off', labelleft='off', labelright='off')
+        plt.suptitle("Action: ({:.3f}, {:.3f}), Reward: {:.3f}"
+                        .format(action[0][0], action[0][1], reward[0][0]))
+        plt.savefig('temp.png', dpi=300, bbox_inches='tight')
         masks.fill_(0.0 if terminal else 1.0)
         ep_reward += reward
 
