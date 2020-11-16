@@ -1,0 +1,6 @@
+*.ods
+*.xlsx
+*.csv
+julia/no-stop-and-go/
+julia/stop-and-go/
+*.png
