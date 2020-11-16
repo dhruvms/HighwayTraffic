@@ -194,21 +194,16 @@ function is_terminal(env::EnvState; init::Bool=false)
     end
 
     # done = done || (env.steps ≥ env.params.max_ticks)
-    if !env.params.eval
-        if (env.lane_ticks ≥ 10)
+    if !env.params.eval # training
+        if (env.lane_ticks ≥ 25)
             done = true
             final_r = +100.0
         end
-    else
-        if (env.merge_tick ≠ -1 && env.steps ≥ env.merge_tick + 50)
+    else # evaluation
+        if (env.lane_ticks ≥ 25)
             done = true
             final_r = +100.0
         end
-        # # Dhruv's success check - "well-aligned" with lane
-        # if (env.lane_ticks ≥ 10)
-        #     done = true
-        #     final_r = +100.0
-        # end
     end
 
     # max_s = 0.0
@@ -254,14 +249,14 @@ function reward(env::EnvState, action::Vector{Float64},
         shaping += env.params.deadend_cost * deadend
 
         if env.in_lane
-            if !env.params.eval
+            if !env.params.eval # training
                 if (Δt ≤ 0.15) && (Δϕ ≤ deg2rad(10))
                     env.lane_ticks += 1
                 else
                     env.in_lane = false
                     env.lane_ticks = 0
                 end
-            else
+            else # evaluation
                 env.lane_ticks += 1
                 # # Dhruv's success check - "well-aligned" with lane
                 # if (Δt ≤ 0.15) && (Δϕ ≤ deg2rad(10))
@@ -272,12 +267,12 @@ function reward(env::EnvState, action::Vector{Float64},
                 # end
             end
         else
-            if !env.params.eval
+            if !env.params.eval # training
                 if (Δt ≤ 0.15) && (Δϕ ≤ deg2rad(10))
                     env.in_lane = true
                     env.lane_ticks = 1
                 end
-            else
+            else # evaluation
                 env.in_lane = true
                 env.lane_ticks = 1
                 # # Dhruv's success check - "well-aligned" with lane

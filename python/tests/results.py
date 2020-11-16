@@ -204,7 +204,8 @@ if args.model_name is None:
     args.model_name = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
 model_name = get_model_name(args)
-modeldir = args.save_dir + model_name + '/'
+# modeldir = args.save_dir + model_name + '/'
+modeldir = args.save_dir + 'no-stop-and-go/curriculum/' + model_name + '/'
 
 data_dir = modeldir + 'vids/' # actually inside a timestamped folder inside vids/
 results_dir = modeldir + 'results/'
@@ -213,141 +214,150 @@ if not os.path.exists(results_dir):
 
 exps = next(os.walk(data_dir))[1]
 for i, exp in enumerate(exps):
-    exp_dir = results_dir + exp + '/'
-    if not os.path.exists(exp_dir):
-        os.makedirs(exp_dir)
+    for folder, run, files in os.walk(os.path.join(data_dir, exp)):
+        if len(files) > 0 and 'results' not in folder:
+            EXPNAME = folder.split('/')[-1]
+            EXPNAME = EXPNAME if EXPNAME != exp else ''
+            EXPDIR = os.path.join(results_dir, exp) + '/'
+            EXPDIR =  EXPDIR + EXPNAME + '/' if EXPNAME else EXPDIR
 
-    filenames = os.listdir(data_dir + exp)
-    merge_ticks = []
-    ep_lengths = []
-    min_dists = []
-    avg_offsets = []
+            if not os.path.exists(EXPDIR):
+                os.makedirs(EXPDIR)
 
-    steer_angles = []
-    steer_rates = []
-    vels = []
-    jerks = []
-    accs = []
-    offsets = []
+            merge_ticks = []
+            ep_lengths = []
+            min_dists = []
+            avg_offsets = []
 
-    victim_alons = []
-    victim_vels = []
-    victim_alats = []
+            steer_angles = []
+            steer_rates = []
+            vels = []
+            jerks = []
+            accs = []
+            offsets = []
 
-    for file in filenames:
-        try:
-            parsed_data = read_file(os.path.join(data_dir, exp, file))
-        except Exception as e:
-            print(os.path.join(data_dir, exp, file))
+            victim_alons = []
+            victim_vels = []
+            victim_alats = []
 
-        if parsed_data["ep_length"] <= 0:
-            continue
+            for file in files:
+                filepath = os.path.join(data_dir, exp) + '/'
+                filepath =  filepath + EXPNAME + '/' if EXPNAME else filepath
 
-        # for histograms
-        merge_ticks.append(parsed_data["merge_tick"])
-        ep_lengths.append(parsed_data["ep_length"])
-        min_dists.append(parsed_data["min_dist"])
-        avg_offsets.append(parsed_data["avg_offset"])
+                try:
+                    parsed_data = read_file(filepath + file)
+                except Exception as e:
+                    print(filepath + file)
 
-        # for plots over time
-        steer_angles.append(parsed_data["steer_angle"])
-        steer_rates.append(parsed_data["steer_rate"])
-        vels.append(parsed_data["vel"])
-        jerks.append(parsed_data["jerk"])
-        accs.append(parsed_data["acc"])
-        offsets.append(parsed_data["offset"])
+                if parsed_data["ep_length"] <= 0:
+                    continue
 
-        # for plots over time, if exists
-        if parsed_data["victim"]:
-            victim_alons.append(parsed_data["victim"]["alon"])
-            victim_vels.append(parsed_data["victim"]["vel"])
-            victim_alats.append(parsed_data["victim"]["alat"])
+                # for histograms
+                merge_ticks.append(parsed_data["merge_tick"])
+                ep_lengths.append(parsed_data["ep_length"])
+                min_dists.append(parsed_data["min_dist"])
+                avg_offsets.append(parsed_data["avg_offset"])
 
-    successes = np.all([np.array(ep_lengths) >= np.array(merge_ticks) + 50,
-                        np.array(merge_ticks) > 0,
-                        np.array(merge_ticks) < 200], axis=0)
-    num_successes = sum(successes)
-    total = len(ep_lengths)
-    
-    merge_ticks = list(np.array(merge_ticks)[successes])
-    min_dists = list(np.array(min_dists)[successes])
-    avg_offsets = list(np.array(avg_offsets)[successes])
+                # for plots over time
+                steer_angles.append(parsed_data["steer_angle"])
+                steer_rates.append(parsed_data["steer_rate"])
+                vels.append(parsed_data["vel"])
+                jerks.append(parsed_data["jerk"])
+                accs.append(parsed_data["acc"])
+                offsets.append(parsed_data["offset"])
 
-    merge_time_mean = np.mean(merge_ticks)
-    merge_time_stddev = np.std(merge_ticks)
+                # for plots over time, if exists
+                if parsed_data["victim"]:
+                    victim_alons.append(parsed_data["victim"]["alon"])
+                    victim_vels.append(parsed_data["victim"]["vel"])
+                    victim_alats.append(parsed_data["victim"]["alat"])
 
-    min_dist_mean = np.mean(min_dists)
-    min_dist_stddev = np.std(min_dists)
+            successes = np.all([
+                            np.array(ep_lengths) >= (np.array(merge_ticks)/0.2) + 10,
+                            np.array(merge_ticks) > 0,
+                            np.array(merge_ticks) < 200], axis=0)
+            num_successes = sum(successes)
+            total = len(ep_lengths)
 
-    avg_offset_mean = np.mean(avg_offsets)
-    avg_offset_stddev = np.std(avg_offsets)
+            merge_ticks = list(np.array(merge_ticks)[successes])
+            min_dists = list(np.array(min_dists)[successes])
+            avg_offsets = list(np.array(avg_offsets)[successes])
 
-    summary_file = exp_dir + "summary.dat"
-    with open(summary_file, 'w') as f:
-        success_rate = (num_successes/total) * 100
-        f.write("%f\n" % success_rate)
-        f.write("%f +- %f\n" % (merge_time_mean, merge_time_stddev))
-        f.write("%f +- %f\n" % (min_dist_mean, min_dist_stddev))
-        f.write("%f +- %f\n" % (avg_offset_mean, avg_offset_stddev))
+            merge_time_mean = np.mean(merge_ticks)
+            merge_time_stddev = np.std(merge_ticks)
 
-    metrics_file = exp_dir + "metrics.dat"
-    with open(metrics_file, 'w') as f:
-        f.write("%d\n" % num_successes)
-        f.write("%d\n" % total)
+            min_dist_mean = np.mean(min_dists)
+            min_dist_stddev = np.std(min_dists)
 
-        for tick in merge_ticks:
-            f.write("%f," % tick)
-        f.write('\n')
+            avg_offset_mean = np.mean(avg_offsets)
+            avg_offset_stddev = np.std(avg_offsets)
 
-        for dist in min_dists:
-            f.write("%f," % dist)
-        f.write('\n')
+            summary_file = EXPDIR + "summary.dat"
+            with open(summary_file, 'w') as f:
+                success_rate = (num_successes/total) * 100
+                f.write("%f\n" % success_rate)
+                f.write("%f +- %f\n" % (merge_time_mean, merge_time_stddev))
+                f.write("%f +- %f\n" % (min_dist_mean, min_dist_stddev))
+                f.write("%f +- %f\n" % (avg_offset_mean, avg_offset_stddev))
 
-        for offset in avg_offsets:
-            f.write("%f," % offset)
-        f.write('\n')
+            metrics_file = EXPDIR + "metrics.dat"
+            with open(metrics_file, 'w') as f:
+                f.write("%d\n" % num_successes)
+                f.write("%d\n" % total)
 
-    # input sizes: (total episodes x 201)
-    # output sizes: (201 x 3)
-    steer_angles_mat = get_results_matrix(steer_angles)
-    steer_rates_mat = get_results_matrix(steer_rates)
-    vels_mat = get_results_matrix(vels)
-    jerks_mat = get_results_matrix(jerks)
-    accs_mat = get_results_matrix(accs)
-    offsets_mat = get_results_matrix(offsets)
+                for tick in merge_ticks:
+                    f.write("%f," % tick)
+                f.write('\n')
 
-    np.save(exp_dir + "steer_angles", steer_angles_mat)
-    np.save(exp_dir + "steer_rates", steer_rates_mat)
-    np.save(exp_dir + "vels", vels_mat)
-    np.save(exp_dir + "jerks", jerks_mat)
-    np.save(exp_dir + "accs", steer_angles_mat)
-    np.save(exp_dir + "offsets", offsets_mat)
+                for dist in min_dists:
+                    f.write("%f," % dist)
+                f.write('\n')
 
-    # data, xlabel, title, binwidth, colour, filename
-    FIG, AX = plot_hist(
-                merge_ticks,
-                "Time to change lane (s)",
-                "Histogram of time taken for lane change",
-                1.0,
-                "#7fc97f",
-                exp_dir + "time_to_merge",
-                FIG, AX)
-    FIG, AX = plot_hist(
-                min_dists,
-                "Minimum distance to other vehicles (m)",
-                "Histogram of minimum distances",
-                0.1,
-                "#beaed4",
-                exp_dir + "min_dists",
-                FIG, AX)
-    FIG, AX = plot_hist(
-                avg_offsets,
-                "Average offset from desired lane (m)",
-                "Histogram of offset from desired lane",
-                0.1,
-                "#fdc086",
-                exp_dir + "avg_offsets",
-                FIG, AX)
+                for offset in avg_offsets:
+                    f.write("%f," % offset)
+                f.write('\n')
+
+            # input sizes: (total episodes x 201)
+            # output sizes: (201 x 3)
+            steer_angles_mat = get_results_matrix(steer_angles)
+            steer_rates_mat = get_results_matrix(steer_rates)
+            vels_mat = get_results_matrix(vels)
+            jerks_mat = get_results_matrix(jerks)
+            accs_mat = get_results_matrix(accs)
+            offsets_mat = get_results_matrix(offsets)
+
+            np.save(EXPDIR + "steer_angles", steer_angles_mat)
+            np.save(EXPDIR + "steer_rates", steer_rates_mat)
+            np.save(EXPDIR + "vels", vels_mat)
+            np.save(EXPDIR + "jerks", jerks_mat)
+            np.save(EXPDIR + "accs", steer_angles_mat)
+            np.save(EXPDIR + "offsets", offsets_mat)
+
+            # data, xlabel, title, binwidth, colour, filename
+            FIG, AX = plot_hist(
+                        merge_ticks,
+                        "Time to change lane (s)",
+                        "Histogram of time taken for lane change",
+                        1.0,
+                        "#7fc97f",
+                        EXPDIR + "time_to_merge",
+                        FIG, AX)
+            FIG, AX = plot_hist(
+                        min_dists,
+                        "Minimum distance to other vehicles (m)",
+                        "Histogram of minimum distances",
+                        0.1,
+                        "#beaed4",
+                        EXPDIR + "min_dists",
+                        FIG, AX)
+            FIG, AX = plot_hist(
+                        avg_offsets,
+                        "Average offset from desired lane (m)",
+                        "Histogram of offset from desired lane",
+                        0.1,
+                        "#fdc086",
+                        EXPDIR + "avg_offsets",
+                        FIG, AX)
 
 # merge ticks: 7fc97f
 # min dists: beaed4

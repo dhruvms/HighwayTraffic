@@ -7,10 +7,10 @@ include("../src/behaviours/mpc_driver.jl")
 
 # roadway parameters
 lanes = 4
-length = 200.0
+road_length = 200.0
 width = 10.0
 radius = 20.0
-roadway = gen_stadium_roadway(lanes, length=length, width=width, radius=radius)
+roadway = gen_stadium_roadway(lanes, length=road_length, width=width, radius=radius)
 
 # simulation parameters
 num_vehs = 50
@@ -21,7 +21,7 @@ max_v = 15.0
 scene = Scene()
 carcolors = Dict{Int,Colorant}()
 models = Dict{Int, DriverModel}()
-offset = (length/(num_vehs/lanes))
+offset = (road_length/(num_vehs/lanes))
 v_num = 1
 for i in 1:(num_vehs/lanes)
     x_offset = (i-1) * offset

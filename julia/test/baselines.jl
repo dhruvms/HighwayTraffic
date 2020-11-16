@@ -106,14 +106,14 @@ cars = parsed_args["cars"]
 gap = parsed_args["gap"]
 exp_dir = "$cars-Cars_$lanes-Lanes_$gap-Gap/" * parsed_args["eval_mode"] * "/"
 results_dir *= exp_dir
-if occursin("../data/", results_dir)
-	parsed_args["gap"] += 0.5
-end
+# if occursin("../data/", results_dir)
+# 	parsed_args["gap"] += 0.5
+# end
 
 if parsed_args["ego_model"] == 1
 	results_dir *= "IDM-MOBIL/"
 else
-	if occursin("data2", results_dir)
+	if occursin("data2", results_dir) || occursin("data3", results_dir)
 		cars = parsed_args["cars"]
 		gap = parsed_args["gap"]
 		results_dir *= "$cars-Cars_$gap-Gap/"

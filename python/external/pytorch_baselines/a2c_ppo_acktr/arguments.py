@@ -152,6 +152,8 @@ def get_args():
         help='Number of lanes on roadway')
     parser.add_argument('--cars', default=30, type=int,
         help='Number of cars on roadway')
+    parser.add_argument('--testcars', default=30, type=int,
+        help='Number of cars on roadway')
     parser.add_argument('--stadium', action='store_true', default=False,
         help='stadium roadway')
     parser.add_argument('--change', action='store_true', default=False,
@@ -190,6 +192,8 @@ def get_args():
         help='clamp action inside simulator')
     parser.add_argument('--extra-deadends', action='store_true', default=False,
         help='add deadends in other lanes')
+    parser.add_argument('--gap', default=1.1, type=float,
+        help='Gap between cars')
 
     parser.add_argument('--max-steps', type=int, default=256,
                         help='Max steps per episode')
@@ -199,10 +203,12 @@ def get_args():
         help='in eval mode or not')
     parser.add_argument('--norm-obs', action='store_true', default=True,
         help='in eval mode or not')
-    parser.add_argument('--hri', action='store_true', default=True,
+    parser.add_argument('--hri', action='store_true', default=False,
         help='HRI specific test case')
-    parser.add_argument('--curriculum', action='store_true', default=True,
+    parser.add_argument('--curriculum', action='store_true', default=False,
         help='use randomised curriculum')
+    parser.add_argument('--stopgo', action='store_true', default=False,
+        help='add stop and go behaviour')
 
     parser.add_argument('--log', action='store_true', default=False,
         help='tensorboard logging')
